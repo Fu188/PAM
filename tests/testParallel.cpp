@@ -1,5 +1,5 @@
-#include "get_time.h"
-#include "parse_command_line.h"
+#include "pbbslib/get_time.h"
+#include "pbbslib/parse_command_line.h"
 timer t;
 
 #include <algorithm>
@@ -13,8 +13,8 @@ timer t;
 #include <map>
 #include "assert.h"
 #include "pam.h"
-#include "parlay/primitives.h"
-#include "parlay/random.h"
+#include "pbbslib/sequence_ops.h"
+#include "pbbslib/random_shuffle.h"
 
 using namespace std;
 #define NO_AUG 1
@@ -41,7 +41,7 @@ struct entry {
   static aug_t from_entry(key_t k, val_t v) { return v;}
   static aug_t combine(aug_t a, aug_t b) { return std::max(a,b);}
   // following just used for treaps
-  static size_t hash(pair<key_t,val_t> e) { return parlay::hash64(e.first);}
+  static size_t hash(pair<key_t,val_t> e) { return pbbs::hash64(e.first);}
 };
 
 struct entry2 {
@@ -96,30 +96,31 @@ std::mt19937_64& get_rand_gen() {
   return generator;
 }
 
-parlay::sequence<par> uniform_input(size_t n, size_t window, bool shuffle = false) {
-  auto g = [&] (size_t i) -> par {
+pbbs::sequence<par> uniform_input(size_t n, size_t window, bool shuffle = false) {
+  auto g = [&] (size_t i) {
     uniform_int_distribution<> r_keys(1, window);
     key_type key = r_keys(get_rand_gen());
     key_type val = i;
     return make_pair(key,val);
   };
-  auto Pairs =  parlay::tabulate(n, g);
+  pbbs::sequence<par> Pairs(n, g);
   auto addfirst = [] (par a, par b) -> par {
     return par(a.first+b.first, b.second);};
-  parlay::scan_inclusive_inplace(parlay::make_slice(Pairs),
-				 parlay::make_monoid(addfirst,par(0,0)));
-  if (shuffle) parlay::random_shuffle(Pairs);
+  pbbs::scan_inplace(Pairs.slice(), pbbs::make_monoid(addfirst,par(0,0)),
+		     pbbs::fl_scan_inclusive);
+  if (shuffle) pbbs::random_shuffle(Pairs);
   return Pairs;
 }
 
-parlay::sequence<par> uniform_input_unsorted(size_t n, size_t window) {
-  auto f = [&] (size_t i) -> par {
+pbbs::sequence<par> uniform_input_unsorted(size_t n, size_t window) {
+  auto f = [&] (size_t i) {
     uniform_int_distribution<> r_keys(1, window);
     key_type k = r_keys(get_rand_gen());
     key_type c = r_keys(get_rand_gen());
     return make_pair(k, c);
   };
-  return parlay::tabulate(n, f);
+  pbbs::sequence<par> v(n, f);
+  return v;
 }
 
 bool check_union(const tmap& m1, const tmap &m2, const tmap& m3) {
@@ -142,8 +143,8 @@ bool check_union(const tmap& m1, const tmap &m2, const tmap& m3) {
   vector<key_type> e1(m1.size());
   vector<key_type> e2(m2.size());
   vector<key_type> e3;
-  tmap::keys(m1, &e1[0]);
-  tmap::keys(m2, &e2[0]);
+  tmap::keys_to_array(m1, &e1[0]);
+  tmap::keys_to_array(m2, &e2[0]);
 
   set_union(e1.begin(), e1.end(), e2.begin(), e2.end(), back_inserter(e3));
 
@@ -155,16 +156,16 @@ bool check_union(const tmap& m1, const tmap &m2, const tmap& m3) {
   return ret;
 }
 
-bool check_multi_insert(const parlay::sequence<par>& m1, const parlay::sequence<par> &m2, const tmap& m3) {
+bool check_multi_insert(const pbbs::sequence<par>& m1, const pbbs::sequence<par> &m2, const tmap& m3) {
   size_t l1 = m1.size();
   size_t l2 = m2.size();
   vector<key_type> e1(m1.size());
   vector<key_type> e2(m2.size());
   vector<key_type> e3;
   auto f = [&] (size_t i) { e1[i] = m1[i].first;};
-  parlay::parallel_for(0, l1, f);
+  parallel_for(0, l1, f);
   auto f2 = [&] (size_t i) { e2[i] = m2[i].first;};
-  parlay::parallel_for(0, l2, f2);
+  parallel_for(0, l2, f2);
 
   set_union(e1.begin(), e1.end(), e2.begin(), e2.end(), back_inserter(e3));
 
@@ -180,8 +181,8 @@ bool check_intersect(const tmap& m1, const tmap& m2, const tmap& m3) {
   vector<key_type> e1(m1.size());
   vector<key_type> e2(m2.size());
   vector<key_type> e3;
-  tmap::keys(m1, &e1[0]);
-  tmap::keys(m2, &e2[0]);
+  tmap::keys_to_array(m1, &e1[0]);
+  tmap::keys_to_array(m2, &e2[0]);
 
   set_intersection(e1.begin(), e1.end(), e2.begin(), e2.end(), back_inserter(e3));
 
@@ -197,8 +198,8 @@ bool check_difference(const tmap& m1, const tmap& m2, const tmap& m3) {
   vector<key_type> e1(m1.size());
   vector<key_type> e2(m2.size());
   vector<key_type> e3;
-  tmap::keys(m1, &e1[0]);
-  tmap::keys(m2, &e2[0]);
+  tmap::keys_to_array(m1, &e1[0]);
+  tmap::keys_to_array(m2, &e2[0]);
 
   set_difference(e1.begin(), e1.end(), e2.begin(), e2.end(), back_inserter(e3));
 
@@ -263,7 +264,7 @@ bool check_aug_filter(const tmap& m, const tmap& f, T cond) {
   return true;
 }
 
-bool contains(const tmap& m, const parlay::sequence<par> v) {
+bool contains(const tmap& m, const pbbs::sequence<par> v) {
   bool ret = 1;
   for (size_t i = 0; i < m.size(); ++i) {
     ret &= m.contains(v[i].first);
@@ -274,17 +275,17 @@ bool contains(const tmap& m, const parlay::sequence<par> v) {
 
 double test_union(size_t n, size_t m) {
 
-  //parlay::sequence<par> v1 = uniform_input(n, 20);
+  //pbbs::sequence<par> v1 = uniform_input(n, 20);
   //tmap m1(v1);
 
-  //parlay::sequence<par> v2 = uniform_input(m, (n/m) * 20);
+  //pbbs::sequence<par> v2 = uniform_input(m, (n/m) * 20);
   //tmap m2(v2);
   
-  parlay::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
+  pbbs::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
   tmap m1(v1);
   size_t nx = m1.size();
 
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
   tmap m2(v2);
   size_t mx = m2.size();
   double tm;
@@ -302,16 +303,16 @@ double test_union(size_t n, size_t m) {
 }
 
 double test_incremental_union_nonpersistent(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input(n, 20, true);
+  pbbs::sequence<par> v1 = uniform_input(n, 20, true);
   tmap m1(v1);
 
-  parlay::sequence<par> v2 = uniform_input(n, 20, true);
+  pbbs::sequence<par> v2 = uniform_input(n, 20, true);
 
   //size_t round = n/m;
   timer t;
   t.start();
   for (size_t i = 0; i < n; i+=m) {
-    tmap m2(parlay::to_sequence(v2.cut(i, i+m)));
+    tmap m2(v2.slice(i, i+m));
     m1 = tmap::map_union(move(m1), move(m2));
   }
   double tm = t.stop();
@@ -322,13 +323,13 @@ double test_incremental_union_nonpersistent(size_t n, size_t m) {
 }
 
 double test_intersect(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
+  pbbs::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
   tmap m1(v1);
   size_t nx = m1.size();
 
-  //parlay::sequence<par> v2 = uniform_input(m, (n/m) * 2);
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
-  parlay::parallel_for(0, m/2, [&](int i) {v2[i]=v1[i];});
+  //pbbs::sequence<par> v2 = uniform_input(m, (n/m) * 2);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
+  parallel_for(0, m/2, [&](int i) {v2[i]=v1[i];});
   tmap m2(v2);
   size_t mx = m2.size();
 
@@ -345,10 +346,10 @@ double test_intersect(size_t n, size_t m) {
 }
 
 double test_deletion(size_t n, size_t m) {
-  parlay::sequence<par> v = uniform_input(n, 20);
+  pbbs::sequence<par> v = uniform_input(n, 20);
   tmap m1(v);
 
-  parlay::sequence<par> u = uniform_input(m, (n/m)*20, true);
+  pbbs::sequence<par> u = uniform_input(m, (n/m)*20, true);
 
   timer t;
   t.start();
@@ -360,11 +361,11 @@ double test_deletion(size_t n, size_t m) {
 }
 
 double test_deletion_destroy(size_t n) {
-  parlay::sequence<par> v = uniform_input(n, 20, true);
+  pbbs::sequence<par> v = uniform_input(n, 20, true);
   tmap m1;
   for (size_t i = 0; i < n; ++i)
     m1.insert(v[i]);
-  parlay::random_shuffle(v);
+  pbbs::random_shuffle(v);
 
   timer t;
   t.start();
@@ -376,8 +377,8 @@ double test_deletion_destroy(size_t n) {
 }
 
 double test_insertion_build(size_t n) {
-  //parlay::sequence<par> v = uniform_input(n, 20, true);
-  parlay::sequence<par> v = uniform_input_unsorted(n,1000000000);
+  //pbbs::sequence<par> v = uniform_input(n, 20, true);
+  pbbs::sequence<par> v = uniform_input_unsorted(n,1000000000);
   tmap m1;
 
   timer t;
@@ -390,7 +391,7 @@ double test_insertion_build(size_t n) {
 }
 
 double test_insertion_build_persistent(size_t n) {
-  parlay::sequence<par> v = uniform_input(n, 20, true);
+  pbbs::sequence<par> v = uniform_input(n, 20, true);
   tmap m1;
   tmap* r = new tmap[n];
   tmap::reserve(30*n);
@@ -409,10 +410,10 @@ double test_insertion_build_persistent(size_t n) {
 }
 
 double test_insertion(size_t n, size_t m) {
-  parlay::sequence<par> v = uniform_input(n, 20);
+  pbbs::sequence<par> v = uniform_input(n, 20);
   tmap m1(v);
 
-  parlay::sequence<par> u = uniform_input(m, (n/m)*20, true);
+  pbbs::sequence<par> u = uniform_input(m, (n/m)*20, true);
 
   timer t;
   t.start();
@@ -425,21 +426,21 @@ double test_insertion(size_t n, size_t m) {
 
 tmap build_slow(par* A, size_t n) {
   if (n <= 0) return tmap();
-  if (n == 1) return tmap({A[0]});
+  if (n == 1) return tmap(A[0]);
   size_t mid = n/2;
 
   tmap a, b;
   auto left = [&] () {a = build_slow(A, mid);};
   auto right = [&] () {b = build_slow(A+mid, n-mid);};
 
-  parlay::par_do_if(n > 100, left, right);
+  par_do_if(n > 100, left, right);
 
   return tmap::map_union(std::move(a), std::move(b));
 }
 
 double test_multi_insert(size_t n, size_t m) {
-  parlay::sequence<par> v = uniform_input(n, 20,true );
-  parlay::sequence<par> u = uniform_input(m, (n/m)*20, true);
+  pbbs::sequence<par> v = uniform_input(n, 20,true );
+  pbbs::sequence<par> u = uniform_input(m, (n/m)*20, true);
   tmap m1(v);
 
   timer t;
@@ -450,12 +451,12 @@ double test_multi_insert(size_t n, size_t m) {
 }
 
 double test_multi_delete(size_t n, size_t m) {
-  parlay::sequence<par> v = uniform_input(n, 20, true );
+  pbbs::sequence<par> v = uniform_input(n, 20, true );
   
   auto g = [&](int i) -> key_type {
 	  return v[i*n/m].first;
   };
-  auto u = parlay::tabulate(m, g);
+  pbbs::sequence<key_type> u(m, g);
   
   tmap m1(v);
 
@@ -469,8 +470,8 @@ double test_multi_delete(size_t n, size_t m) {
 
 double test_dest_multi_insert(size_t n, size_t m) {
 
-  parlay::sequence<par> v = uniform_input(n, 20);
-  parlay::sequence<par> u = uniform_input(m, (n/m)*20, true);
+  pbbs::sequence<par> v = uniform_input(n, 20);
+  pbbs::sequence<par> u = uniform_input(m, (n/m)*20, true);
   cout << "size of u: " << u.size() << endl;
   
   tmap m1(v);
@@ -486,8 +487,8 @@ double test_dest_multi_insert(size_t n, size_t m) {
 
 
 double stl_insertion(size_t n, size_t m) {
-  parlay::sequence<par> v = uniform_input(n, 20);
-  parlay::sequence<par> u = uniform_input(m, (n/m)*20, true);
+  pbbs::sequence<par> v = uniform_input(n, 20);
+  pbbs::sequence<par> u = uniform_input(m, (n/m)*20, true);
 
   map<key_type, key_type> m1;
   for (size_t i = 0; i < n; ++i)
@@ -503,8 +504,8 @@ double stl_insertion(size_t n, size_t m) {
 }
 
 double stl_insertion_build(size_t n) {
-  //parlay::sequence<par> v = uniform_input(n, 20, true);
-  parlay::sequence<par> v = uniform_input_unsorted(n,1000000000);
+  //pbbs::sequence<par> v = uniform_input(n, 20, true);
+  pbbs::sequence<par> v = uniform_input_unsorted(n,1000000000);
   map<key_type, key_type> m1;
 
   timer t;
@@ -517,9 +518,9 @@ double stl_insertion_build(size_t n) {
 }
 
 double stl_delete_destroy(size_t n) {
-  parlay::sequence<par> v = uniform_input(n, 20, true);
+  pbbs::sequence<par> v = uniform_input(n, 20, true);
   map<key_type, key_type> m1;
-  parlay::random_shuffle(v);
+  pbbs::random_shuffle(v);
 
   timer t;
   t.start();
@@ -532,9 +533,9 @@ double stl_delete_destroy(size_t n) {
 
 
 double test_build(size_t n) {
-  //parlay::sequence<par> v = uniform_input_unsorted(n, 1000000000);
+  //pbbs::sequence<par> v = uniform_input_unsorted(n, 1000000000);
 
-  parlay::sequence<par> v = uniform_input(n, 20, true);
+  pbbs::sequence<par> v = uniform_input(n, 20, true);
 
   timer t;
   t.start();
@@ -548,7 +549,7 @@ double test_build(size_t n) {
 }
 
 double test_filter(size_t n) {
-  parlay::sequence<par> v = uniform_input(n, 20);
+  pbbs::sequence<par> v = uniform_input(n, 20);
   tmap m1(v);
 
   timer t;
@@ -564,7 +565,7 @@ double test_filter(size_t n) {
 }
 
 double test_map_reduce(size_t n) {
-  parlay::sequence<par> v = uniform_input(n, 20);
+  pbbs::sequence<par> v = uniform_input(n, 20);
   tmap m1(v);
 
   timer t;
@@ -577,7 +578,7 @@ double test_map_reduce(size_t n) {
 }
 
 double test_aug_filter(size_t n, size_t m) {
-  parlay::sequence<par> v = uniform_input(n, 20);
+  pbbs::sequence<par> v = uniform_input(n, 20);
   key_type threshold = n-m;
   tmap m1(v);
   tmap res = m1;
@@ -607,14 +608,14 @@ double test_aug_filter(size_t n, size_t m) {
 }
 
 double test_dest_union(size_t n, size_t m) {
-  //parlay::sequence<par> v1 = uniform_input(n, 20);
-  parlay::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
-  //parlay::sequence<par> v1 = uniform_input_unsorted(n, 100);
+  //pbbs::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
+  //pbbs::sequence<par> v1 = uniform_input_unsorted(n, 100);
   tmap m1(v1);
   tmap m1_copy(v1);
 
-  //parlay::sequence<par> v2 = uniform_input(m, (n/m) * 20);
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
+  //pbbs::sequence<par> v2 = uniform_input(m, (n/m) * 20);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
   tmap m2(v2);
   tmap m2_copy(v2);
   
@@ -635,14 +636,14 @@ double test_dest_union(size_t n, size_t m) {
 
 
 double test_dest_intersect(size_t n, size_t m) {
-  //parlay::sequence<par> v1 = uniform_input(n, 20);
-  parlay::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
+  //pbbs::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
   tmap m1(v1);
   tmap m1_copy(v1);
 
-  //parlay::sequence<par> v2 = uniform_input(m, (n/m) * 2);
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
-  parlay::parallel_for(0, m/2, [&](int i) {v2[i]=v1[i];});
+  //pbbs::sequence<par> v2 = uniform_input(m, (n/m) * 2);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
+  parallel_for(0, m/2, [&](int i) {v2[i]=v1[i];});
   tmap m2(v2);
   tmap m2_copy(v2);
 
@@ -660,38 +661,40 @@ double test_dest_intersect(size_t n, size_t m) {
 
 
 double test_split(size_t n) {
-  parlay::sequence<par>v = uniform_input(n, 20);
+  //pbbs::sequence<par>v = uniform_input(n, 20);
 
-  tmap m1(v);
+  //tmap m1(v);
 
   // key_type key = v[n / 2].first;
 
-  timer t;
-  t.start();
-  pair<tmap, tmap> res;// = m1.split(key);
-  double tm = t.stop();
+  //timer t;
+  //t.start();
+  //pair<tmap, tmap> res;// = m1.split(key);
+  //pair<tmap, tmap> res = m1.split(key);
+  //double tm = t.stop();
 
-  check(m1.size() == n, "map size is wrong");
-  check(res.first.size() + res.second.size() + 1 == n
-	, "splitted map size is wrong");
+  //check(m1.size() == n, "map size is wrong");
+  //check(res.first.size() + res.second.size() + 1 == n, "splitted map size is wrong");
   //check(check_split(key, v, res), "split is wrong");
+  
+  cout << "split is not supported directly in the interface any more. You can use range() instead." << endl;
 
-  return tm;
+  return 0.0;
 }
 
 
 //a destructive version for now
 double test_difference(size_t n, size_t m) {
-  //parlay::sequence<par> v1 = uniform_input(n, 20);
-  parlay::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
+  //pbbs::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
   tmap m1(v1);
   tmap m1_copy(v1);
   //size_t nx = m1.size();
   
 
-  //parlay::sequence<par> v2 = uniform_input(m, (n/m) * 20);
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
-  parlay::parallel_for(0, m/2, [&](int i) {v2[i]=v1[i];});
+  //pbbs::sequence<par> v2 = uniform_input(m, (n/m) * 20);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
+  parallel_for(0, m/2, [&](int i) {v2[i]=v1[i];});
   tmap m2(v2);
   tmap m2_copy(v2);
   //size_t mx = m2.size();
@@ -709,18 +712,18 @@ double test_difference(size_t n, size_t m) {
 }
 
 double test_find(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v1 = uniform_input(n, 20);
   key_type max_key = v1[n-1].first;
   tmap m1(v1);
 
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, max_key);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, max_key);
 
   bool *v3 = new bool[m];
 
   timer t;
   t.start();
   auto f = [&] (size_t i) {v3[i] = m1.contains(v2[i].first);};
-  parlay::parallel_for(0, m, f);
+  parallel_for(0, m, f);
 
   double tm = t.stop();
   delete[] v3;
@@ -729,11 +732,11 @@ double test_find(size_t n, size_t m) {
 }
 
 double test_range(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v1 = uniform_input(n, 20);
   key_type max_key = v1[n-1].first;
   tmap m1(v1);
 
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, max_key);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, max_key);
   // window size is 1/1000 of total width
   size_t win = max_key/1000;
 
@@ -745,22 +748,22 @@ double test_range(size_t n, size_t m) {
     v3[i] = tmap::range(m1, v2[i].first, v2[i].first+win);
   };
 
-  parlay::parallel_for(0, m, f);
+  parallel_for(0, m, f);
   double tm = t.stop();
 
   // do deletion in parallel
-  parlay::parallel_for(0, m, [&] (size_t i) {v3[i] = tmap();});
+  parallel_for(0, m, [&] (size_t i) {v3[i] = tmap();});
   delete[] v3;
 
   return tm;
 }
 
 double test_aug_range(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input_unsorted(n, 1000000000);
+  pbbs::sequence<par> v1 = uniform_input_unsorted(n, 1000000000);
   key_type max_key = v1[n-1].first;
   tmap m1(v1);
 
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, max_key);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, max_key);
 
   key_type *v3 = new key_type[m];
 
@@ -770,7 +773,7 @@ double test_aug_range(size_t n, size_t m) {
   // window size is 1/1000 of total width
   size_t win = max_key/1000;
 
-  parlay::parallel_for(0, m, [&] (size_t i) {
+  parallel_for(0, m, [&] (size_t i) {
       v3[i] = m1.aug_range(v2[i].first, v2[i].first+win);
     });
 #endif
@@ -782,18 +785,18 @@ double test_aug_range(size_t n, size_t m) {
 }
 
 double test_aug_left(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v1 = uniform_input(n, 20);
   key_type max_key = v1[n-1].first;
   tmap m1(v1);
 
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, max_key);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, max_key);
 
   key_type *v3 = new key_type[m];
 
   timer t;
   t.start();
 #ifndef NO_AUG
-  parlay::parallel_for(0, m, [&] (size_t i) {
+  parallel_for(0, m, [&] (size_t i) {
       v3[i] = m1.aug_left(v2[i].first);
     });
 #endif
@@ -806,8 +809,8 @@ double test_aug_left(size_t n, size_t m) {
 
 
 double stl_set_union(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input(n, 20);
-  parlay::sequence<par> v2 = uniform_input(m, 20 * (n / m));
+  pbbs::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v2 = uniform_input(m, 20 * (n / m));
 
   //set <key_type> s1, s2, sret;
   //key_type* s1 = new key_type[n];
@@ -836,10 +839,10 @@ double stl_set_union(size_t n, size_t m) {
 }
 
 double stl_map_union(size_t n, size_t m) {
-  //parlay::sequence<par> v1 = uniform_input(n, 20);
-  //parlay::sequence<par> v2 = uniform_input(m, 20 * (n / m));
-  parlay::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
+  //pbbs::sequence<par> v1 = uniform_input(n, 20);
+  //pbbs::sequence<par> v2 = uniform_input(m, 20 * (n / m));
+  pbbs::sequence<par> v1 = uniform_input_unsorted(n, 4294967295);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, 4294967295);
 
   std::map <key_type,key_type> s1, s2;
   for (size_t i = 0; i < n; ++i) {
@@ -860,8 +863,8 @@ double stl_map_union(size_t n, size_t m) {
 
 
 double stl_vector_union(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input(n, 20);
-  parlay::sequence<par> v2 = uniform_input(m, 20 * (n / m));
+  pbbs::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v2 = uniform_input(m, 20 * (n / m));
 
   vector <mapped> s1, s2, sret;
   sret.reserve(m+n);
@@ -883,10 +886,10 @@ double stl_vector_union(size_t n, size_t m) {
 
 double intersect_multi_type(size_t n, size_t m) {
 
-  parlay::sequence<par> v1 = uniform_input(n, 2);
+  pbbs::sequence<par> v1 = uniform_input(n, 2);
   tmap m1(v1);
 
-  parlay::sequence<par> v2 = uniform_input(m, (n/m) * 2);
+  pbbs::sequence<par> v2 = uniform_input(m, (n/m) * 2);
   pair<key_type, bool>* vv2 = new pair<key_type, bool>[m];
   for (size_t i = 0; i < m; i++) {
     vv2[i].first = v2[i].first;
@@ -960,18 +963,18 @@ string test_name[] = {
 };
 
 double flat_aug_range(size_t n, size_t m) {
-  parlay::sequence<par> v1 = uniform_input(n, 20);
+  pbbs::sequence<par> v1 = uniform_input(n, 20);
   key_type max_key = v1[n-1].first;
-  tmap m1(v1);
+  tmap m1(v1, true);
 
-  parlay::sequence<par> v2 = uniform_input_unsorted(m, max_key);
+  pbbs::sequence<par> v2 = uniform_input_unsorted(m, max_key);
 
   key_type *v3 = new key_type[m];
   size_t win = v1[n-1].first/1000;
 
   timer t;
   t.start();
-  parlay::parallel_for(0, m, [&] (size_t i) {
+  parallel_for(0, m, [&] (size_t i) {
       tmap m2 = tmap::range(m1, v2[i].first, v2[i].first+win);
       auto f = [] (par e) { return e.second;};
       v3[i] = tmap::map_reduce(m2, f, Add());
@@ -1056,7 +1059,7 @@ double execute(size_t id, size_t n, size_t m) {
 }
 
 void test_loop(size_t n, size_t m, size_t repeat, size_t test_id, bool randomize) {
-  size_t threads = parlay::num_workers();
+  size_t threads = num_workers();
   size_t reserve_size = (test_id == 4 || test_id == 19) ? n : 4 * n;
   cout << "threads = " << threads << endl;
   cout << "node size = " << sizeof(typename tmap::node) << endl;

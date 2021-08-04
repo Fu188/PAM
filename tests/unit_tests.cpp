@@ -1,11 +1,7 @@
+#include "pam.h"
+#include "../index/index.h"
 #include <iostream>
 #include <algorithm>
-
-#include <pam/pam.h>
-#include <parlay/random.h>
-
-#include "../examples/index/index.h"
-
 using namespace std;
 
 struct entry {
@@ -17,7 +13,7 @@ struct entry {
   static aug_t from_entry(key_t k , val_t v) { return v/2.0;}
   static aug_t combine(aug_t a, aug_t b) { return a + b;}
   // following just used for treaps
-  static size_t hash(pair<key_t,val_t> e) { return parlay::hash64(e.first);}
+  static size_t hash(pair<key_t,val_t> e) { return pbbs::hash64(e.first);}
 };
 
 struct entry_max {
@@ -80,7 +76,7 @@ void test_map(int balance_type) {
   char names[4][10] = {"WB", "RB", "treap", "AVL"};
   cout << "testing: " << names[balance_type] << endl;
 
-  parlay::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
+  pbbs::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
 
   map ma(a);
   check(ma.size() == 3, "size check ma");
@@ -114,8 +110,8 @@ void test_map(int balance_type) {
   auto f = [&] (int a, bool b) -> char {if (b) return 'a'; else return 'b'+a%10;};
   mc2 = map3::map_intersect(ma, mb2, f);
   check(mc2.size() == 2, "intersection size");
-  check(mc2.find(2).value() == 'a', "check intersection result 2");
-  check(mc2.find(6).value() == 'j', "check intersection result 6");
+  check(mc2.find(2).value == 'a', "check intersection result 2");
+  check(mc2.find(6).value == 'j', "check intersection result 6");
   mb2.clear(); mc2.clear();
 
   ma = map::insert(move(ma), elt(9,11));
@@ -134,7 +130,7 @@ void test_map(int balance_type) {
   check(ma.size() == 4, "size check insert with sum");
   check(*ma.find(6) == 13, "find check insert with sum");
 
-  parlay::sequence<elt> b = {elt(1,6), elt(4,3)};
+  pbbs::sequence<elt> b = {elt(1,6), elt(4,3)};
 
   map *mb_p = new map(b);
   check(mb_p->size() == 2, "size check mb");
@@ -240,7 +236,7 @@ void test_map(int balance_type) {
   check(ma.size() == 100, "size check for ma insert");
   check(ma == map::map_union(std::move(mc), std::move(md)), 
     "check map equality");
-  check(ma.find(50).has_value(), "check ma contains 50");
+  check(ma.find(50), "check ma contains 50");
   check(!ma.find(100), "check ma does not contain 100");
   
   ma = map::remove(move(ma), 50);
@@ -248,22 +244,6 @@ void test_map(int balance_type) {
   check(!ma.find(50), "check ma does not contain 50 after delete");
 
   delete mb_p;
-  
-  //added a more complicated union query
-  parlay::sequence<elt> x(70);
-  parlay::sequence<elt> y(40);
-  parlay::sequence<elt> input_elt(100);
-  for (int i = 0; i < 100; i++) input_elt[i] = elt(i, i);
-  parlay::random_shuffle(input_elt);
-  for (int i = 0; i < 70; i++) x[i] = input_elt[i];
-  for (int i = 0; i < 40; i++) y[i] = input_elt[i+60];
-  
-  map mapx(x);
-  map mapy(y);
-  map mapz = map::map_union(mapx, mapy);
-  check(mapz.size() == 100, "size check for mapz (should be 100)");
-  for (int i = 0; i< 100; i++) check(mapz.find(i).has_value(), "check all 100 elements");
-  check(mapz.check_balance(), "z is balanced");
 }    
 
 void test_map_reserve_finish() {
@@ -271,9 +251,9 @@ void test_map_reserve_finish() {
   for (size_t i = 0; i < 10; i++) {
     map::reserve(20);
     {
-      auto a = parlay::tabulate(n, [&] (size_t i) -> elt {
+      pbbs::sequence<elt> a(n, [&] (size_t i) {
 	  return elt(n*i + rand()%n,0);});
-      auto b = parlay::tabulate(n, [&] (size_t i) -> elt {
+      pbbs::sequence<elt> b(n, [&] (size_t i) {
 	  return elt(n*i + rand()%n,0);});
       map ma(a);
       map mb(b);
@@ -287,8 +267,8 @@ void test_map_reserve_finish() {
 void test_map_more() {
 
   { // equality test
-    parlay::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
-    parlay::sequence<elt> b = {elt(2,4), elt(4,5)};    
+    pbbs::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
+    pbbs::sequence<elt> b = {elt(2,4), elt(4,5)};    
     map ma(a);
     map mb(b);
     check (!(ma == mb), "equality check, not equal");
@@ -297,8 +277,8 @@ void test_map_more() {
   }
 
   { // join2 test
-    parlay::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
-    parlay::sequence<elt> b = {elt(9,0), elt(11,7)};    
+    pbbs::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
+    pbbs::sequence<elt> b = {elt(9,0), elt(11,7)};    
     map ma(a);
     map mb(b);
     map mc = map::join2(ma,mb);
@@ -314,7 +294,7 @@ void test_map_more() {
       static T add(T a, T b) { return a + b;}
     };
 
-    parlay::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8), elt(9,1), elt(12, 2)};
+    pbbs::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8), elt(9,1), elt(12, 2)};
     map ma(a);
     auto f = [&] (elt e) -> long { return (long) 2 * e.second;};
     long x = map::map_reduce(ma, f, Add());
@@ -322,9 +302,10 @@ void test_map_more() {
   }
 
   { // map_filter test
-    parlay::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8), elt(9,1), elt(12, 2)};
+    pbbs::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8), elt(9,1), elt(12, 2)};
     auto f = [&] (elt a) {
-      return (a.first > 4) ? std::optional<int>{2*a.second} : std::nullopt;
+      if (a.first > 4) return maybe<int>(2*a.second);
+      else return maybe<int>();
     };
     map ma(a);
     map mb = map::map_filter(ma,f);
@@ -334,22 +315,22 @@ void test_map_more() {
   }
 
   { // self union test
-    parlay::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
+    pbbs::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
     map ma(a);
     map mb = map::map_union(ma,ma);
     check (mb.size() == 3, "self union test");
   }  
 
   { // self intersection test
-    parlay::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
+    pbbs::sequence<elt> a = {elt(2,4), elt(4,5), elt(6,8)};
     map ma(a);
     map mb = map::map_intersect(ma,ma);
     check (mb.size() == 3, "self intersection test");
   }  
 
   { // build combine test
-    parlay::sequence<elt> a = {elt(2,4), elt(4,5), elt(2,6)};
-    parlay::sequence<elt> b = {elt(2,10), elt(4,5)};
+    pbbs::sequence<elt> a = {elt(2,4), elt(4,5), elt(2,6)};
+    pbbs::sequence<elt> b = {elt(2,10), elt(4,5)};
     map ma(a, [] (int a, int b) -> int {return a + b;});
     map mb(b);
     check (mb.size() == 2, "length check, combine test");
@@ -373,15 +354,15 @@ void test_index() {
         {"not", 2}, {"everyone", 2}, {"likes", 2}, {"apple", 2}, {"pie", 2}
   };
 
-  auto KV = parlay::tabulate(word_count, [&] (size_t i) -> index_elt {
-      return index_elt(parlay::to_sequence(words[i].first),
+  pbbs::sequence<index_elt> KV(word_count, [&] (size_t i) {
+      return index_elt(pbbs::to_sequence(words[i].first),
 		       post_elt(words[i].second,0));
     });
     
   inv_index index(KV);
 
   auto list = [&] (string s) {
-    return index.get_list(parlay::to_sequence(s));};
+    return index.get_list(pbbs::to_sequence(s));};
 
   post_list apple = list("apple");
   post_list pie = list("pie");
@@ -484,9 +465,9 @@ using avl_map  = aug_map<entry,avl_tree>;
 
 void test_all() {
   test_map<wb_map>(0);
+  test_map<rb_map>(1);
   test_map<treap_map>(2); 
   test_map<avl_map>(3);
-  test_map<rb_map>(1);
   test_set();
   test_map_more();
   test_aug();
