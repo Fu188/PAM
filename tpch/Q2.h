@@ -1,5 +1,5 @@
 // s_acctbal, s_name, n_name, p_partkey, p_mfgr, s_address, s_phone, s_comment
-using Q2_elt = tuple<float, char*, char*, dkey_t, char*, char*, char*, char*>;
+using Q2_elt = tuple<uint, char*, char*, uint, char*, char*, char*, char*>;
 using Q2_rtype = sequence<Q2_elt>;
 
 bool equal(float a, float b) {
@@ -9,66 +9,64 @@ bool equal(float a, float b) {
 Q2_rtype Q2(maps m, unsigned int rid, int size, char* type) {
 
   int typelen = strlen(type);
-  using ps_map = part_to_supp_map;
-  using s_map = part_supp_and_item_map;
+  using i2sm = item_to_supp_map;
+  using isom = item_supp_and_orderline_map;
 
-  auto part_f = [&] (ps_map::E& pe) -> maybe<ps_map::V> {
-    Part& p = pe.second.first;
-    s_map& sim = pe.second.second;
-    char* t = p.type();
+  auto item_f = [&] (i2sm::E& pe) -> maybe<i2sm::V> {
+    Item& it = pe.second.first;
+    isom& sim = pe.second.second;
+    char* t = it.i_data();
     // if correct size and type
-    if (p.size == size && strcmp(t + strlen(t)- typelen, type) == 0) {
+    if (strcmp(t + strlen(t)- typelen, type) == 0) {
       // for each supplier in correct region return ps cost
-      auto supp_cost = [&] (s_map::E& se) -> float {
+      auto supp_cost = [&] (isom::E& se) -> float {
 	//Supplier& s = se.second.first.second;
-	dkey_t suppkey = se.second.first.suppkey;
+	uint suppkey = se.second.first.s_su_suppkey;
 	Supplier& s = static_data.all_supp[suppkey];
-	if (nations[s.nationkey].regionkey == rid) {
+	if (nations[s.su_nationkey].n_regionkey == rid) {
 	  //return get_ps_cost(key_pair(p.partkey, s.suppkey));
-	  return se.second.first.supplycost;
+	  return se.second.first.s_quantity;
 	}
 	else return 1e10;
       };
       // find the cheapest
-      float min_cost = s_map::map_reduce(sim, supp_cost, Min<float>());
+      float min_cost = isom::map_reduce(sim, supp_cost, Min<float>());
 
       // for each supplier in correct region check if cheapest
-      auto supp_f = [&] (s_map::E& se) -> bool {
+      auto supp_f = [&] (isom::E& se) -> bool {
 	//Supplier& s = se.second.first.second;
-	dkey_t suppkey = se.second.first.suppkey;
+	uint suppkey = se.second.first.s_su_suppkey;
 	Supplier& s = static_data.all_supp[suppkey];
-	return (nations[s.nationkey].regionkey == rid &&
-		se.second.first.supplycost == min_cost);
+	return (nations[s.su_nationkey].n_regionkey == rid &&
+		se.second.first.s_quantity == min_cost);
       };
 
       // filter those in correct region that equal cheapest
-      s_map top = s_map::filter(sim, supp_f);
-      if (top.size() > 0) return maybe<ps_map::V>(make_pair(p,top));
-      else return maybe<ps_map::V>();
-    } else return maybe<ps_map::V>();
+      isom top = isom::filter(sim, supp_f);
+      if (top.size() > 0) return maybe<i2sm::V>(make_pair(it,top));
+      else return maybe<i2sm::V>();
+    } else return maybe<i2sm::V>();
   };
   
-  ps_map x = ps_map::map_filter(m.psm2, part_f);
+  i2sm x = i2sm::map_filter(m.ism2, item_f);
   using elt = Q2_elt;
 
   // selected values
-  auto ps_f = [&] (ps_map::E pe, s_map::E se) -> elt {
-    Part p = pe.second.first;
-    dkey_t suppkey = se.second.first.suppkey;
+  auto ps_f = [&] (i2sm::E pe, isom::E se) -> elt {
+    Item it = pe.second.first;
+    uint suppkey = se.second.first.s_su_suppkey;
     Supplier s = static_data.all_supp[suppkey];
-    char* n_name = nations[s.nationkey].name;
-    //s.acctbal
-    return elt(0.0, s.name(), n_name, p.partkey, p.mfgr(),
-	       s.address(), s.phone(), s.comment());
+    char* n_name = nations[s.su_nationkey].n_name;
+
+    return elt(s.su_suppkey, s.su_name(), n_name, it.i_id, it.i_name(),
+	       s.su_address(), s.su_phone(), s.su_comment());
   };
   sequence<elt> elts = flatten_pair<elt>(x, ps_f);
   
 
-  // sort by output ordering: s_acctbal (desc), n_name, s_name, p_partkey
+  // sort by output ordering: n_name, s_name, p_partkey
   auto less = [] (elt a, elt b) {
     //return (get<0>(a) > get<0>(b));
-    if (get<0>(a) > get<0>(b)) return true;
-    if (get<0>(a) < get<0>(b)) return false;
     int cmp_n_name = strcmp(get<2>(a), get<2>(b));
     if (cmp_n_name < 0) return true;
     if (cmp_n_name > 0) return false;
@@ -85,13 +83,13 @@ double Q2time(maps m, bool verbose) {
   t.start();
   unsigned int rid = 3;
   int size = 15;
-  char type[] = "BRASS";
+  char type[] = "b";
 
   Q2_rtype result = Q2(m, rid, size, type);
   //cout << result.size() << endl;
   
   double ret_tm = t.stop();
-  if (query_out) cout << "Q2 : " << ret_tm << endl;  
+  cout << "Q2 : " << ret_tm << endl;
 
   if (verbose) {
     Q2_elt r = result[0];

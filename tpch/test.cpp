@@ -481,10 +481,12 @@
 //  }
 //}
 # include "Q1.h"
+# include "Q2.h"
 
 void test(string data_directory, bool verbose) {
     maps m = make_maps_test(data_directory, verbose);
     Q1time(m, verbose);
+    Q2time(m, verbose);
 }
 
 int main(int argc, char **argv) {

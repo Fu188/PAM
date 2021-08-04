@@ -284,7 +284,7 @@ maps make_maps_test(string dirname, bool verbose) {
         cout << "-- nation" << endl;
         string n_f = dirname;
         string nation_fname = n_f.append("NATION.tbl");
-        sequence<Nation> nations = read_and_parse<Nation>(nation_fname, verbose);
+        nations = read_and_parse<Nation>(nation_fname, verbose);
         NATION_NUM = nations.size();
         if (verbose) {nextTime("parse nations");}
     }

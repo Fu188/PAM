@@ -263,6 +263,8 @@ struct Nation {
     char *name() {return n_name;}
 };
 
+sequence<Nation> nations;
+
 block_allocator supp_str_pool(185);
 
 // size 16

@@ -1,4 +1,4 @@
-//bool query_out = false;
+bool query_out = false;
 //std::atomic<bool> finish(false);
 //int queries = 22;
 //int rpt = 5;
