@@ -248,41 +248,41 @@
 //	return t.stop();
 //}
 //
-//pair<double, double> geo_mean(double* x, int round) {
-//	double res = 0.0, dev = 0.0;
-//	for (int j = 0; j < round; j++) {
-//		double tmp = log2(x[j]*1000.0);
-//		res += tmp;
-//	}
-//	res = res/(round+0.0);
-//	res = exp2(res);
-//	double m = 0.0;
-//	for (int j = 0; j < round; j++) {
-//		double tmp = log2(x[j]*1000.0/res);
-//		m += tmp*tmp;
-//
-//	}
-//	dev = exp2(sqrt(m/(round+0.0)));
-//	return make_pair(res, dev);
-//}
-//
-//pair<double, double> arith_mean(double* x, int round) {
-//    double res = 0.0, dev = 0.0;
-//    for (int j = 0; j < round; j++) {
-//        double tmp = x[j]*1000;
-//        res += tmp;
-//    }
-//    res = res/(round+0.0);
-//    double m = 0.0;
-//    for (int j = 0; j < round; j++) {
-//        double tmp = (x[j]*1000)/res;
-//        m += tmp*tmp;
-//
-//    }
-//    dev = sqrt(m/(round+0.0));
-//    return make_pair(res, dev);
-//}
-//
+pair<double, double> geo_mean(double* x, int round) {
+	double res = 0.0, dev = 0.0;
+	for (int j = 0; j < round; j++) {
+		double tmp = log2(x[j]*1000.0);
+		res += tmp;
+	}
+	res = res/(round+0.0);
+	res = exp2(res);
+	double m = 0.0;
+	for (int j = 0; j < round; j++) {
+		double tmp = log2(x[j]*1000.0/res);
+		m += tmp*tmp;
+
+	}
+	dev = exp2(sqrt(m/(round+0.0)));
+	return make_pair(res, dev);
+}
+
+pair<double, double> arith_mean(double* x, int round) {
+    double res = 0.0, dev = 0.0;
+    for (int j = 0; j < round; j++) {
+        double tmp = x[j]*1000;
+        res += tmp;
+    }
+    res = res/(round+0.0);
+    double m = 0.0;
+    for (int j = 0; j < round; j++) {
+        double tmp = (x[j]*1000)/res;
+        m += tmp*tmp;
+
+    }
+    dev = sqrt(m/(round+0.0));
+    return make_pair(res, dev);
+}
+
 //void output_new_order(new_order_entry t, ofstream& myfile) {
 //	myfile << "N|" << t.num_items <<
 //	"|" << t.o.orderkey <<
@@ -480,13 +480,48 @@
 //    nextTime("query or update");
 //  }
 //}
+void output_res(double** tm, int round, int queries) {
+    double tot = 0;
+    double res[queries];
+    for (int i = 0; i < queries; i++) {
+        res[i] = 0;
+        cout << "processing query " << i+1 << endl;
+        for (int j = 0; j < round; j++) {
+            double tmp = log2(tm[i][j]*1000.0);
+            res[i] += tmp;
+            cout << tm[i][j] << " ";
+        }
+        cout << endl;
+        res[i] = res[i]/(round+0.0);
+        tot += res[i];
+        res[i] = exp2(res[i]);
+        double m = 0.0, dev = 0.0;
+        for (int j = 0; j < round; j++) {
+            double tmp = log2(tm[i][j]*1000.0/res[i]);
+            m += tmp*tmp;
+        }
+        dev = exp2(sqrt(m/(round+0.0)));
+        cout << "geo mean of query " << i+1 << " : " << res[i] << ", sdev: " << dev << endl << endl;
+    }
+}
+
 # include "Q1.h"
 # include "Q2.h"
 
 void test(string data_directory, bool verbose) {
     maps m = make_maps_test(data_directory, verbose);
-    Q1time(m, verbose);
-    Q2time(m, verbose);
+    int queries = 2, round = 6;
+    double** tm;
+    tm = new double*[queries];
+    for (int i = 0; i < queries; i++) {
+      tm[i] = new double[100];
+    }
+    for (int i = 0; i < round; i++) {
+        tm[0][i] = Q1time(m, verbose);
+        tm[1][i] = Q2time(m, verbose);
+    }
+
+    output_res(tm, round, queries);
 }
 
 int main(int argc, char **argv) {
