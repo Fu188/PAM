@@ -9,10 +9,11 @@ Q4_rtype Q4(maps m, const char* start, const char* end) {
 
   auto date_f = [] (o_order_map::E& d) -> T {
     auto order_f = [] (T& a, order_map::E& o) -> void {
-      auto line_f = [] (Lineitem& e) -> int {
-	return Date::less(e.c_date, e.r_date);};
-      int n = li_map::map_reduce(o.second.second, line_f, Add<int>());
-      if (n > 0) a[o.second.first.orderpriority]++;
+      auto orderline_f = [o] (OrderLine& e) -> int {
+	    return Date::less_or_equal(o.second.first.o_entry_d, e.ol_delivery_d);
+      };
+      int n = ol_map::map_reduce(o.second.second, orderline_f, Add<int>());
+      if (n > 0) a[o.second.first.o_ol_cnt]++;
     };
     return order_map::semi_map_reduce(d.second, order_f, H());
   };
@@ -22,8 +23,8 @@ Q4_rtype Q4(maps m, const char* start, const char* end) {
 double Q4time(maps m, bool verbose) {
   timer t;
   t.start();
-  const char start[] = "1993-07-01";
-  const char end[] = "1993-09-30";
+  const char start[] = "2007-01-02";
+  const char end[] = "2012-01-02";
 
   Q4_rtype result = Q4(m, start, end);
 

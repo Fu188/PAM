@@ -508,10 +508,12 @@ void output_res(double** tm, int round, int queries) {
 # include "Q1.h"
 # include "Q2.h"
 # include "Q3.h"
+# include "Q4.h"
+# include "Q5.h"
 
 void test(string data_directory, bool verbose) {
     maps m = make_maps_test(data_directory, verbose);
-    int queries = 3, round = 6;
+    int queries = 22, round = 6;
     double** tm;
     tm = new double*[queries];
     for (int i = 0; i < queries; i++) {
@@ -521,6 +523,8 @@ void test(string data_directory, bool verbose) {
         tm[0][i] = Q1time(m, verbose);
         tm[1][i] = Q2time(m, verbose);
         tm[2][i] = Q3time(m, verbose);
+        tm[3][i] = Q4time(m, verbose);
+        tm[4][i] = Q5time(m, verbose);
     }
 
     output_res(tm, round, queries);

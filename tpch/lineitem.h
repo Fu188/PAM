@@ -228,6 +228,7 @@ struct OrderLine {
     uint ol_supply_w_id;
     Date ol_delivery_d;
     uint ol_quantity;
+    uint ol_suppkey;
     float ol_amount;
 
     OrderLine() = default;
@@ -243,6 +244,7 @@ struct OrderLine {
         ol_quantity = str_to_int(S[7]);
         ol_amount = atof(S[8]);
         ol_pkey = str_to_int(S[10]);
+        ol_suppkey = (ol_i_id*ol_w_id)%10000;
     }
 };
 
