@@ -47,6 +47,14 @@ struct Date {
         return a.v.c <= b.v.c;
     }
 
+    static bool greater(Date a, Date b) {
+        return a.v.c > b.v.c;
+    }
+
+    static bool greater_or_equal(Date a, Date b) {
+        return a.v.c >= b.v.c;
+    }
+
     int year() { return v.d.year + start_year; }
 
     int month() { return v.d.month; }

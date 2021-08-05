@@ -1,35 +1,33 @@
-double Q6(maps m, const char* start, const char* end, float discount, int quantity) {
-  ship_map sm = m.sm;
-  ship_map ship_range = ship_map::range(sm, Date(start), Date(end));
+double Q6(maps m, const char *start, const char *end, int quantity_begin, int quantity_end) {
+    delivery_map dm = m.dm;
+    delivery_map delivery_range = delivery_map::range(dm, Date(start), Date(end));
 
-  auto sh_f = [&] (ship_map::E& e) -> double {
-    auto li_f = [=] (li_map::E& l) -> double {
-      double dis = l.discount.val();
-      int quant = l.quantity();
-      if ((dis > (discount - .01-epsilon)) && (dis < (discount + .01+epsilon))
-	  && (quant < quantity))
-	return l.e_price * dis;
-      else return 0.0;
+    auto delivery_f = [&](delivery_map::E &e) -> double {
+        auto ol_f = [=](ol_map::E &ol) -> double {
+            int quant = ol.ol_quantity;
+            if ((quant > quantity_begin) && (quant < quantity_end))
+                return ol.ol_amount;
+            else return 0.0;
+        };
+        return ol_map::map_reduce(e.second, ol_f, Add<double>());
     };
-    return li_map::map_reduce(e.second, li_f, Add<double>());
-  };
 
-  return ship_map::map_reduce(ship_range, sh_f, Add<double>(), 1);
+    return delivery_map::map_reduce(delivery_range, delivery_f, Add<double>(), 1);
 }
 
 double Q6time(maps m, bool verbose) {
-  timer t;
-  t.start();
-  const char start[] = "1994-01-01";
-  const char end[] = "1994-12-31";
-  const float discount = .06;
-  const int quantity = 24;
+    timer t;
+    t.start();
+    const char start[] = "1999-01-01";
+    const char end[] = "2020-01-01";
+    const int quantity_begin = 1;
+    const int quantity_end = 100000;
 
-  double result = Q6(m, start, end, discount, quantity);
-  double ret_tm = t.stop();
-  if (query_out) cout << "Q6 : " << ret_tm << endl;
+    double result = Q6(m, start, end, quantity_begin, quantity_end);
+    double ret_tm = t.stop();
+    cout << "Q6 : " << ret_tm << endl;
 
-  if (verbose) cout << "Q6:" << endl << result << endl;
-  return ret_tm;
+    if (verbose) cout << "Q6:" << endl << result << endl;
+    return ret_tm;
 }
 
