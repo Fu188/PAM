@@ -32,8 +32,8 @@ struct Date {
         uint c;
         struct {
             ushort day;
-            uchar month;
-            uchar year;
+            ushort month;
+            ushort year;
         } d;
     };
     as v;
@@ -99,6 +99,7 @@ struct Date {
         string m = std::to_string(month());
         if (month() < 10) m = "0" + m;
         string d = std::to_string(day());
+        if (day() < 10) d = "0" + d;
         string result = y + "-" + m + "-" + d;
         return result;
     }

@@ -1,6 +1,6 @@
 include ../Makeheader 
 
-test:	lineitem.h tables.h utils.h readCSV.h test.cpp Q1.h Q2.h
+test:	lineitem.h tables.h utils.h readCSV.h test.cpp Q1.h Q2.h Q3.h
 	$(CC) $(CFLAGS) -w test.cpp -o test $(LFLAGS)
 
 runtest20: test

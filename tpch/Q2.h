@@ -50,19 +50,17 @@ Q2_rtype Q2(maps m, unsigned int rid, int size, char* type) {
   
   i2sm x = i2sm::map_filter(m.ism2, item_f);
   using elt = Q2_elt;
-
   // selected values
   auto ps_f = [&] (i2sm::E pe, isom::E se) -> elt {
     Item it = pe.second.first;
     uint suppkey = se.second.first.s_su_suppkey;
     Supplier s = static_data.all_supp[suppkey];
-    char* n_name = nations[s.su_nationkey].n_name;
+    char* n_name = nations[s.su_nationkey].name();
 
     return elt(s.su_suppkey, s.su_name(), n_name, it.i_id, it.i_name(),
 	       s.su_address(), s.su_phone(), s.su_comment());
   };
   sequence<elt> elts = flatten_pair<elt>(x, ps_f);
-  
 
   // sort by output ordering: n_name, s_name, p_partkey
   auto less = [] (elt a, elt b) {
@@ -84,7 +82,6 @@ double Q2time(maps m, bool verbose) {
   unsigned int rid = 3;
   int size = 15;
   char type[] = "b";
-
   Q2_rtype result = Q2(m, rid, size, type);
   //cout << result.size() << endl;
   

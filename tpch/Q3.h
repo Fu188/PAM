@@ -1,11 +1,12 @@
 struct Q3result {
-  Q3result(int k, int s, Date o, float r)
-    : ord_key(k), ship_priority(s), ord_date(o), revenue(r) {}
+  Q3result(uint ol_o_id, uint ol_w_id, uint ol_d_id, float r, Date entry_date)
+    : ol_o_id(ol_o_id), ol_w_id(ol_w_id), ol_d_id(ol_d_id), revenue(r), o_entry_d(entry_date) {}
   Q3result() {}
-  int ord_key;
-  int ship_priority;
-  Date ord_date;
+  uint ol_o_id;
+  uint ol_w_id;
+  uint ol_d_id;
   float revenue;
+  Date o_entry_d;
 };
 struct set_entry {
   using key_t = Q3result;
@@ -27,21 +28,20 @@ void Q3(maps m, bool verbose, char* seg, Date date) {
   };
 
   auto customer_f = [&] (customer_map::E& c) {
-    char* mkseg = c.second.first.mktsegment();
-    if (strcmp(mkseg, seg) == 0) {
+    char* c_state = c.second.first.c_state();
+    if (strstr(c_state, seg) == c_state) {
       auto order_f = [&] (order_map::E& o) {
-	Orders& ord = o.second.first;
-	if (Date::less(ord.orderdate, date)) {
-	  auto lineitem_f = [&] (li_map::E& l) {
-	    if (Date::less(date, l.s_date))
-	      return l.e_price * (1.0 - l.discount.val());
-	    else return 0.0; };
-	  li_map& lm = o.second.second;
-	  float revenue = li_map::map_reduce(lm, lineitem_f, Add<float>());
-	  if (revenue > 0.0)
-	    return result_list(Q3result(ord.orderkey,ord.shippriority,ord.orderdate,revenue));
-	}
-	return result_list();
+        Order& ord = o.second.first;
+        if (Date::less(date, ord.o_entry_d)) {
+          auto orderline_f = [&] (ol_map::E& ol) {
+              return ol.ol_amount;
+          };
+          ol_map& lm = o.second.second;
+          float revenue = ol_map::map_reduce(lm, orderline_f, Add<float>());
+          if (revenue > 0.0)
+            return result_list(Q3result(ord.o_id, ord.o_w_id, ord.o_d_id, revenue, ord.o_entry_d));
+        }
+        return result_list();
       };
       order_map& od = c.second.second;
       return order_map::map_reduce(od, order_f, Union());
@@ -53,22 +53,24 @@ void Q3(maps m, bool verbose, char* seg, Date date) {
   Q3result x = *(r.select(0));
   if (verbose) {
 	  cout << "Q3:" << endl;
-	  cout << x.ord_key << ", "
+	  cout << x.ol_o_id << ", "
+	       << x.ol_w_id << ", "
+	       << x.ol_d_id << ", "
 	       << x.revenue << ", "
-	       << x.ord_date.to_str() << ", "
-	       << x.ship_priority << endl;
+	       << x.o_entry_d.to_str() << endl;
   }
 }
 
 double Q3time(maps m, bool verbose) {
   timer t;
   t.start();
-  char seg[] = "BUILDING";  // one of 5
-  char sdate[] = "1995-03-15";
+  char seg[] = "A";
+  char sdate[] = "2007-01-02";
   Date date = Date(sdate);
   Q3(m, verbose, seg, date);
   double ret_tm = t.stop();
-  if (query_out) cout << "Q3 : " << ret_tm << endl;
+  cout << "Q3 : " << ret_tm << endl;
+
   return ret_tm;  
 }
 
