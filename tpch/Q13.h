@@ -1,15 +1,13 @@
 using Q13_elt = pair<int,int>;
 using Q13_rtype = sequence<Q13_elt>;
 
-Q13_rtype Q13(maps m, const char* word1, const char* word2) {
+Q13_rtype Q13(maps m, int carrier_low) {
   constexpr int num_buckets = 128;
   using T = array<double, num_buckets>;
 
   auto customer_f = [&] (T& a, customer_map::E& ce) {
     auto order_f = [&] (order_map::E& oe) {
-      char* comment = oe.second.first.comment();
-      char* s1 = strstr(comment, word1);
-      return (s1 == NULL || strstr(s1, word2) == NULL);
+      return oe.second.first.o_carrier_id > carrier_low;
     };
     order_map& omap = ce.second.second;
     int t = order_map::map_reduce(omap, order_f, Add<int>());
@@ -29,13 +27,12 @@ Q13_rtype Q13(maps m, const char* word1, const char* word2) {
 double Q13time(maps m, bool verbose) {
   timer t;
   t.start();
-  const char word1[] = "special";
-  const char word2[] = "requests";
+  int carrier_low = 8;
 
-  Q13_rtype result = Q13(m, word1, word2);
+  Q13_rtype result = Q13(m, carrier_low);
     
   double ret_tm = t.stop();
-  if (query_out) cout << "Q13 : " << ret_tm << endl;
+  cout << "Q13 : " << ret_tm << endl;
 
   if (verbose) {
     Q13_elt r = result[0];
