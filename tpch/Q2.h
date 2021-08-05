@@ -23,7 +23,7 @@ Q2_rtype Q2(maps m, unsigned int rid, int size, char* type) {
 	//Supplier& s = se.second.first.second;
 	uint suppkey = se.second.first.s_su_suppkey;
 	Supplier& s = static_data.all_supp[suppkey];
-	if (nations[s.su_nationkey].n_regionkey == rid) {
+	if (static_data.all_nation[s.su_nationkey].n_regionkey == rid) {
 	  //return get_ps_cost(key_pair(p.partkey, s.suppkey));
 	  return se.second.first.s_quantity;
 	}
@@ -37,7 +37,7 @@ Q2_rtype Q2(maps m, unsigned int rid, int size, char* type) {
 	//Supplier& s = se.second.first.second;
 	uint suppkey = se.second.first.s_su_suppkey;
 	Supplier& s = static_data.all_supp[suppkey];
-	return (nations[s.su_nationkey].n_regionkey == rid &&
+	return (static_data.all_nation[s.su_nationkey].n_regionkey == rid &&
 		se.second.first.s_quantity == min_cost);
       };
 
@@ -55,7 +55,7 @@ Q2_rtype Q2(maps m, unsigned int rid, int size, char* type) {
     Item it = pe.second.first;
     uint suppkey = se.second.first.s_su_suppkey;
     Supplier s = static_data.all_supp[suppkey];
-    char* n_name = nations[s.su_nationkey].name();
+    char* n_name = static_data.all_nation[s.su_nationkey].name();
 
     return elt(s.su_suppkey, s.su_name(), n_name, it.i_id, it.i_name(),
 	       s.su_address(), s.su_phone(), s.su_comment());

@@ -5,12 +5,12 @@ Q5_rtype Q5(maps m, char *start, uint qregion) {
     Date ostart = Date(start);
     customer_map cm = m.cm;
 
-    constexpr int num_nations = 62;
+    constexpr int num_nations = 123;
     using T = array<double, num_nations>;
 
     auto customer_f = [&](T &a, customer_map::E &ce) -> void {
         uint nationid = ce.second.first.c_n_nationkey;
-        if (nations[nationid].n_regionkey == qregion) {
+        if (static_data.all_nation[nationid].n_regionkey == qregion) {
             auto order_f = [&](order_map::E &oe) -> double {
                 Order &ord = oe.second.first;
                 if (Date::less(ord.o_entry_d, ostart))
@@ -56,7 +56,7 @@ double Q5time(maps m, bool verbose) {
     if (verbose) {
         Q5_elt r = result[0];
         cout << "Q5:" << endl
-             << nations[r.first].name() << ", " << r.second << endl;
+             << static_data.all_nation[r.first].name() << ", " << r.second << endl;
     }
     return ret_tm;
 }

@@ -512,6 +512,9 @@ void output_res(double** tm, int round, int queries) {
 # include "Q5.h"
 # include "Q6.h"
 # include "Q7.h"
+# include "Q8.h"
+# include "Q9.h"
+# include "Q10.h"
 
 void test(string data_directory, bool verbose) {
     maps m = make_maps_test(data_directory, verbose);
@@ -529,6 +532,9 @@ void test(string data_directory, bool verbose) {
         tm[4][i] = Q5time(m, verbose);
         tm[5][i] = Q6time(m, verbose);
         tm[6][i] = Q7time(m, verbose);
+        tm[7][i] = Q8time(m, verbose);
+        tm[8][i] = Q9time(m, verbose);
+        tm[9][i] = Q10time(m, verbose);
     }
 
     output_res(tm, round, queries);

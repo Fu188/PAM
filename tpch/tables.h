@@ -94,6 +94,7 @@ void memory_stats() {
 struct arrays_and_temps {
   Supplier* all_supp;
   Item* all_item;
+  Nation* all_nation;
   item_supp_map ism;
 } static_data;
 
@@ -284,9 +285,14 @@ maps make_maps_test(string dirname, bool verbose) {
         cout << "-- nation" << endl;
         string n_f = dirname;
         string nation_fname = n_f.append("NATION.tbl");
-        nations = read_and_parse<Nation>(nation_fname, verbose);
+        sequence<Nation> nations = read_and_parse<Nation>(nation_fname, verbose);
         NATION_NUM = nations.size();
         if (verbose) {nextTime("parse nations");}
+
+        static_data.all_nation = new Nation[NATION_NUM+1];
+        parallel_for (0, nations.size(), [&] (size_t i) {
+            static_data.all_nation[nations[i].n_nationkey] = nations[i];
+        });
     }
 
     return m;

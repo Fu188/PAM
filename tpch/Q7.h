@@ -63,8 +63,8 @@ double Q7time(maps m, bool verbose) {
 
     if (verbose) {
         cout << "Q7:" << endl
-             << "Germany" << ", "
-             << "CAMBODIA" << ", "
+             << static_data.all_nation[n1id].name() << ", "
+             << static_data.all_nation[n2id].name() << ", "
              << "2007, "
              << result[0][0] << endl;
     }
