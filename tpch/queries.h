@@ -3,7 +3,7 @@ bool query_out = false;
 //int queries = 22;
 //int rpt = 5;
 //#include <string.h>
-//#include "pbbslib/hash_table.h"
+#include "pbbslib/hash_table.h"
 //#include "Q1.h"
 //#include "Q2.h"
 //#include "Q3.h"
