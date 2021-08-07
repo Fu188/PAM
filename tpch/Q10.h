@@ -50,14 +50,16 @@ double Q10time(maps m, bool verbose) {
   cout << "Q10 : " << ret_tm << endl;
 
   if (verbose) {
-    Q10_relt r1 = result[0];
-    cout << "Q10:" << endl;
-    cout << get<0>(r1) << ", "
-	 << get<1>(r1) << ", "
-	 << get<2>(r1) << ", "
-	 << get<3>(r1) << ", "
-	 << get<4>(r1) << ", "
-	 << get<5>(r1) << endl;
+      for (int i=0; i<10; i++) {
+          Q10_relt r1 = result[i];
+          cout << "Q10:" << endl;
+          cout << get<0>(r1) << ", "
+               << get<1>(r1) << ", "
+               << get<2>(r1) << ", "
+               << get<3>(r1) << ", "
+               << get<4>(r1) << ", "
+               << get<5>(r1) << endl;
+      }
   }
   return ret_tm;
 }

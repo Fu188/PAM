@@ -20,7 +20,7 @@ Q13_rtype Q13(maps m, int carrier_low) {
   using rt = Q13_elt;
   auto val = [&] (size_t i) {return rt(i+1, bucket_sums[i+1]);};
   auto x = pbbs::delayed_seq<rt>(num_buckets-1, val);
-  auto less = [] (rt a, rt b) {return a.second > b.second;};
+  auto less = [] (rt a, rt b) {return (a.second > b.second) || (a.second == b.second && a.first > b.first);};
   return pbbs::sample_sort(x, less);
 }
 
@@ -35,10 +35,12 @@ double Q13time(maps m, bool verbose) {
   cout << "Q13 : " << ret_tm << endl;
 
   if (verbose) {
-    Q13_elt r = result[0];
-    cout << "Q13:" << endl
-	 << r.first << ", "
-	 << r.second << endl;
+      for (int i=0; i< 10; i++) {
+          Q13_elt r = result[i];
+          cout << "Q13:" << endl
+               << r.first << ", "
+               << r.second << endl;
+      }
   }
   return ret_tm;
 }

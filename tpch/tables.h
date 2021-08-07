@@ -28,9 +28,13 @@ using o_order_map = date_map<order_map>;
 using just_order_map = keyed_map<Order>;
 
 using item_supp_map = paired_key_map<Stock>;
+using item_supp_map_tmp = keyed_map<Stock>;
 using item_supp_and_orderline_map = paired_key_map<pair<Stock, ol_map>>;
+using item_supp_and_orderline_map_tmp = keyed_map<pair<Stock, ol_map>>;
 using item_to_supp_map = keyed_map<pair<Item, item_supp_and_orderline_map>>;
 using supp_to_item_map = keyed_map<pair<Supplier, item_supp_and_orderline_map>>;
+using supp_to_item_map_tmp = keyed_map<pair<Supplier, item_supp_and_orderline_map_tmp>>;
+
 
 struct maps {
     order_map om;
@@ -39,6 +43,7 @@ struct maps {
     o_order_map oom;
     item_to_supp_map ism2;
     supp_to_item_map sim2;
+    supp_to_item_map_tmp sim2_2;
 
     maps() {}
     maps(const maps& m) {
@@ -48,6 +53,7 @@ struct maps {
         oom = m.oom;
         ism2 = m.ism2;
         sim2 = m.sim2;
+        sim2_2 = m.sim2_2;
     }
 
     maps& operator = (const maps& m) {
@@ -58,6 +64,7 @@ struct maps {
             oom = m.oom;
             ism2 = m.ism2;
             sim2 = m.sim2;
+            sim2_2 = m.sim2_2;
         }
         return *this;
     }
@@ -69,6 +76,7 @@ struct maps {
         oom.clear();
         ism2.clear();
         sim2.clear();
+        sim2_2.clear();
     }
 };
 
@@ -207,12 +215,13 @@ maps make_maps_test(string dirname, bool verbose) {
         if (verbose) {nextTime("parse stocks");}
 
         static_data.ism = primary_index<item_supp_map>(stocks, [&] (Stock s) {
-            return make_pair(s.s_i_id, s.s_su_suppkey);
+            return make_pair(s.s_i_id, s.s_w_id);
         });
         if (verbose) {nextTime("<itemkey,suppkey> -> stock index");}
 
         // make map from stock to orderline
         using st_ol_map = paired_key_map<ol_map>;
+        using st_ol_map_tmp = keyed_map<ol_map>;
         st_ol_map amap = secondary_index<st_ol_map>(orderlines, [] (OrderLine ol) {
             return make_pair(ol.ol_i_id, ol.ol_supply_w_id);
         });
@@ -220,7 +229,16 @@ maps make_maps_test(string dirname, bool verbose) {
         item_supp_and_orderline_map isom = paired_index<item_supp_and_orderline_map>(static_data.ism, amap);
         if (verbose) {nextTime("<itemkey,supp_w_key> -> (stock,orderline index)");}
 
+        item_supp_map_tmp ism_temp = primary_index<item_supp_map_tmp>(stocks, [&] (Stock s) {
+            return s.s_i_id;
+        });
+        st_ol_map_tmp amap2_temp = secondary_index<st_ol_map_tmp>(orderlines, [] (OrderLine ol) {
+            return ol.ol_i_id;
+        });
+        item_supp_and_orderline_map_tmp isom_temp = paired_index<item_supp_and_orderline_map_tmp>(ism_temp, amap2_temp);
+
         using tmp_map = keyed_map<item_supp_and_orderline_map>;
+        using tmp_map_tmp = keyed_map<item_supp_and_orderline_map_tmp>;
 
         {
             /********************
@@ -246,6 +264,11 @@ maps make_maps_test(string dirname, bool verbose) {
             });
             m.sim2 = paired_index<supp_to_item_map>(supp_primary, supp_other);
             if (verbose) cout << "sim2 size: " << m.sim2.size() << endl;
+
+            tmp_map_tmp supp_other_temp = secondary_index<tmp_map_tmp>(isom_temp, [] (item_supp_and_orderline_map_tmp::E e) {
+                return e.second.first.s_su_suppkey;
+            });
+            m.sim2_2 = paired_index<supp_to_item_map_tmp>(supp_primary, supp_other_temp);
         }
 
         {

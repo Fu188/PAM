@@ -60,9 +60,11 @@ double Q11time(maps m, bool verbose) {
   cout << "Q11 : " << ret_tm << endl;
   
   if (verbose) {
-    cout << "Q11:" << endl;
-    if (result.size() == 0) cout << "Empty" << endl;
-    else cout << result[0].first << ", " << result[0].second << endl;
+      for (int i=0; i< 10; i++) {
+          cout << "Q11:" << endl;
+          if (result.size() <= i) cout << "Empty" << endl;
+          else cout << result[i].first << ", " << result[i].second << endl;
+      }
   }
   return ret_tm;
 }

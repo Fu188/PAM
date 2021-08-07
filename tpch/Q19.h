@@ -57,13 +57,13 @@ double Q19time(maps m, bool verbose) {
     const char *data[3] = {"a", "b", "c"};
 
     double result = Q19(m, quantity_low, quantity_high, price_low, price_high, data);
+    double ret_tm = t_q19.stop();
+    cout << "Q19 : " << ret_tm << endl;
 
     if (verbose) {
         cout << "Q19:" << endl
              << result << endl;
     }
-    double ret_tm = t_q19.stop();
-    if (query_out) cout << "Q19 : " << ret_tm << endl;
     return ret_tm;
 }  
   

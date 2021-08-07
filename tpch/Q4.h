@@ -29,11 +29,13 @@ double Q4time(maps m, bool verbose) {
   Q4_rtype result = Q4(m, start, end);
 
   double ret_tm = t.stop();
-  if (query_out) cout << "Q4 : " << ret_tm << endl;
+  cout << "Q4 : " << ret_tm << endl;
 
   if (verbose) {
-    int count = get<1>(result);
-    cout << "Q4:" << endl << "1, " << count << endl;
+    for (int i=0; i<6;i++){
+        int count = result[i];
+        cout << 2007+i << ", " << count << endl;
+    }
   }
   return ret_tm;
 }

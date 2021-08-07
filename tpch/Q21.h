@@ -54,9 +54,12 @@ double Q21time(maps m, bool verbose) {
 
     cout << "Q21: " << ret_tm << endl;
     if (verbose) {
-        Q21kip r = res2[0];
-        cout << "Q21:" << endl
-             << static_data.all_supp[r.first].su_name() << " " << r.second << endl;
+        for (int i=0; i<10; i++) {
+            if (res2.size() <= i) continue;
+            Q21kip r = res2[i];
+            cout << "Q21:" << endl
+                 << static_data.all_supp[r.first].su_name() << " " << r.second << endl;
+        }
     }
     return ret_tm;
 }

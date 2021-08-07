@@ -72,11 +72,13 @@ double Q22time(maps m, bool verbose) {
     double ret_tm = t.stop();
     cout << "Q22 : " << ret_tm << endl;
     if (verbose) {
-        Q22ifpair x = sums[13];
-        cout << "Q22:" << endl
-             << "13, "
-             << x.first << ", "
-             << x.second << endl;
+        for (int i=0; i<10; i++) {
+            Q22ifpair x = sums[i];
+            cout << "Q22:" << endl
+                 << i << ", "
+                 << x.first << ", "
+                 << x.second << endl;
+        }
     }
     return ret_tm;
 }

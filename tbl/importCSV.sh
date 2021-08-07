@@ -1,0 +1,12 @@
+cat CUSTOMER.tbl  | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.CUSTOMER FORMAT CSV";
+cat DISTRICT.tbl  | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.DISTRICT FORMAT CSV";
+cat HISTORY.tbl   | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.HISTORY  FORMAT CSV";
+cat ITEM.tbl      | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.ITEM     FORMAT CSV";
+cat NATION.tbl    | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.NATION   FORMAT CSV";
+cat NEWORDER.tbl  | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.NEWORDER FORMAT CSV";
+cat ORDERLINE.tbl | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.ORDERLINE FORMAT CSV";
+cat ORDER.tbl     | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.ORDER FORMAT CSV";
+cat REGION.tbl    | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.REGION FORMAT CSV";
+cat STOCK.tbl     | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.STOCK FORMAT CSV";
+cat SUPPLIER.tbl  | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.SUPPLIER FORMAT CSV";
+cat WAREHOUSE.tbl | clickhouse-client --format_csv_delimiter="|"  --query="INSERT INTO TPCCH2.WAREHOUSE FORMAT CSV";

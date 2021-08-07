@@ -50,14 +50,17 @@ void Q3(maps m, bool verbose, char* seg, Date date) {
 
   result_list r = customer_map::map_reduce(cm, customer_f, Union());
 
-  Q3result x = *(r.select(0));
   if (verbose) {
-	  cout << "Q3:" << endl;
-	  cout << x.ol_o_id << ", "
-	       << x.ol_w_id << ", "
-	       << x.ol_d_id << ", "
-	       << x.revenue << ", "
-	       << x.o_entry_d.to_str() << endl;
+      for (int i= 0; i< 10; i++) {
+          Q3result x = *(r.select(i));
+          cout << "Q3:" << endl;
+          cout << x.ol_o_id << ", "
+               << x.ol_w_id << ", "
+               << x.ol_d_id << ", "
+               << x.revenue << ", "
+               << x.o_entry_d.to_str() << endl;
+      }
+
   }
 }
 

@@ -46,13 +46,15 @@ double Q15time(maps m, bool verbose) {
     cout << "Q15 : " << ret_tm << endl;
 
     if (verbose) {
-        Q15_elt r = result[0];
-        cout << "Q15:" << endl
-             << get<0>(r) << ", "
-             << get<1>(r) << ", "
-             << get<2>(r) << ", "
-             << get<3>(r) << ", "
-             << get<4>(r) << endl;
+        for (int i = 0; i < 10; i++) {
+            Q15_elt r = result[i];
+            cout << "Q15:" << endl
+                 << get<0>(r) << ", "
+                 << get<1>(r) << ", "
+                 << get<2>(r) << ", "
+                 << get<3>(r) << ", "
+                 << get<4>(r) << endl;
+        }
     }
     return ret_tm;
 }

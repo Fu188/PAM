@@ -16,8 +16,11 @@ Q5_rtype Q5(maps m, char *start, uint qregion) {
                 if (Date::less(ord.o_entry_d, ostart))
                     return 0.0;
                 auto ol_f = [&](ol_map::E &ol) -> double {
-                    uint suppid = ol.ol_suppkey;
-                    Supplier &suppV = static_data.all_supp[suppid];
+                    uint ol_w_id = ol.ol_w_id;
+                    uint ol_i_id = ol.ol_i_id;
+                    maybe<Stock> stock = static_data.ism.find(make_pair(ol_i_id, ol_w_id));
+                    if (!stock) return 0.0;
+                    Supplier &suppV = static_data.all_supp[(*stock).s_su_suppkey];
                     if (suppV.su_nationkey != nationid) return 0.0;
                     else return ol.ol_amount;
                 };
@@ -54,9 +57,11 @@ double Q5time(maps m, bool verbose) {
     if (query_out) cout << "Q5 : " << ret_tm << endl;
 
     if (verbose) {
-        Q5_elt r = result[0];
-        cout << "Q5:" << endl
-             << static_data.all_nation[r.first].name() << ", " << r.second << endl;
+        for (int i = 0; i< 10; i++) {
+            Q5_elt r = result[i];
+            cout << "Q5:" << endl
+                 << static_data.all_nation[r.first].name() << ", " << r.second << endl;
+        }
     }
     return ret_tm;
 }

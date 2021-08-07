@@ -45,7 +45,9 @@ Q16_rtype Q16(maps m, const char *type) {
 
         bool replaceQ(eType v, eType b) { return 1; }
 
-        eType update(eType v, eType b) { return rtype(v.first, v.second + b.second); }
+        eType update(eType v, eType b) {
+            return rtype(v.first, v.second + b.second);
+        }
 
         bool cas(eType *p, eType &o, eType &n) {
             return pbbs::atomic_compare_and_swap(p, o, n);
@@ -53,7 +55,7 @@ Q16_rtype Q16(maps m, const char *type) {
     };
 
     auto htable = hash_item(static_data.all_item);
-    pbbs::Table <hash_item> T(psim.size() / 6, htable, 2);
+    pbbs::Table <hash_item> T(psim.size(), htable, 2);
 
     auto map_item = [&](item_to_supp_map::E &e, size_t i) {
         Item &p = e.second.first;
@@ -97,8 +99,8 @@ Q16_rtype Q16(maps m, const char *type) {
     auto to_res = [&](size_t i) {
         Item p = items[sorted_res[i].first];
         int count = sorted_res[0].second;
-        char str_cp[4];
-        copy_string(str_cp, p.i_data()+1, 3);
+        char *str_cp = p.i_data();
+        str_cp[4] = '\0';
         return Q16_elt(p.i_name(), str_cp, p.i_price, count);
     };
     return sequence<Q16_elt>(sorted_res.size(), to_res);
@@ -115,10 +117,12 @@ double Q16time(maps m, bool verbose) {
     cout << "Q16 : " << ret_tm << endl;
 
     if (verbose) {
-        Q16_elt r = result[0];
-        cout << "Q16:" << endl
-             << get<0>(r) << ", " << get<1>(r) << ", "
-             << get<2>(r) << ", " << get<3>(r) << endl;
+        for (int i = 0; i < 10; i++) {
+            Q16_elt r = result[i];
+            cout << "Q16:" << endl
+                 << get<0>(r) << ", " << get<1>(r) << ", "
+                 << get<2>(r) << ", " << get<3>(r) << endl;
+        }
     }
     return ret_tm;
 }

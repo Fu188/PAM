@@ -32,10 +32,10 @@ double Q12time(maps m, bool verbose) {
     Q12_rtype result = Q12(m, end_date);
 
     double ret_tm = t.stop();
-    if (query_out) cout << "Q12 : " << ret_tm << endl;
+    cout << "Q12 : " << ret_tm << endl;
 
     if (verbose) {
-        for (int i = 0; i<20; i++) {
+        for (int i = 0; i<10; i++) {
             cout << "Q12:" << endl
                  << i << ", "
                  << result[i][0] << ", "

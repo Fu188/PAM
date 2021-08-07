@@ -70,9 +70,7 @@ Q8_rtype Q8(maps m, const size_t regionk, const size_t nationk, const char *type
 double Q8time(maps m, bool verbose) {
     timer t;
     t.start();
-    //const char region[] = "AMERICA";
     const int regionk = 3;
-    //const char nation[] = "BRAZIL";
     const int nationk = 55;
     const char type[] = "b";
 

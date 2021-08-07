@@ -16,6 +16,7 @@ Q9_rtype Q9(maps mx, const char *color) {
     const uint num_years = 50;
     size_t min_year = (*(odm.select(0))).first.year();
     size_t max_year = (*(odm.select(odm.size() - 1))).first.year();
+    cout << min_year << ", " << max_year << endl;
     if (max_year - min_year + 1 > num_years) {
         cout << "year out of range in Q9" << endl;
         return Q9_rtype();
@@ -36,14 +37,15 @@ Q9_rtype Q9(maps mx, const char *color) {
         Item &p = pe.second.first;
         s_map &sm = pe.second.second;
         uint item_key = pe.first;
-        char *cl = p.i_name();
+        char *cl = p.i_data();
         if (strcmp(cl + strlen(cl) - typelen, color) == 0) {
             auto supp_f = [&](s_map::E &se) -> void {
                 ol_map &ol = se.second.second;
-                uint supp_key = se.first.second;
-
-                int natkey = static_data.all_supp[se.first.second].su_nationkey;
                 auto ol_f = [&](ol_map::E &ol) -> void {
+                    maybe<Stock> stock = static_data.ism.find(make_pair(ol.ol_i_id, ol.ol_supply_w_id ));
+                    if (!stock) return;
+                    Supplier &suppV = static_data.all_supp[(*stock).s_su_suppkey];
+                    int natkey = suppV.su_nationkey;
                     double profit = ol.ol_amount;
                     int year = ord_year[ol.ol_pkey];
                     a[year][natkey] += profit;
@@ -83,7 +85,7 @@ double Q9time(maps m, bool verbose) {
     cout << "Q9 : " << ret_tm << endl;
 
     if (verbose) {
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 10; i++) {
             Q9_elt r = result[i];
             cout << "Q9:" << endl
                  << get<0>(r) << ", "
