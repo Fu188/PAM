@@ -530,7 +530,7 @@ void output_res(double** tm, int round, int queries) {
 
 void test(string data_directory, bool verbose) {
     maps m = make_maps_test(data_directory, verbose);
-    int queries = 22, round = 1;
+    int queries = 22, round = 6;
     double** tm;
     tm = new double*[queries];
     for (int i = 0; i < queries; i++) {
