@@ -1,5 +1,6 @@
 #include <math.h>
 #include <vector>
+#include <map>
 #include "readCSV.h"
 #include "lineitem.h"
 #include "pbbslib/get_time.h"
@@ -10,276 +11,349 @@
 #include "pam.h"
 #include "utils.h"
 #include "tables.h"
-//vector<maps> history;
 #include "queries.h"
 #include "new_orders.h"
 
-//size_t new_lineitem = 0;
-//size_t shipped_lineitem = 0;
-//size_t keep_versions = 1000000;
-//bool if_persistent = false;
-//
-//double add_new_orders(new_order_entry& no, txn_info& ti) {
-//	timer t; t.start();
-//	maps m = history[history.size()-1];
-//	customer_map cm = m.cm;
-//	int num = no.num_items;
-//	new_lineitem += num;
-//	li_map lm = li_map(no.items, no.items + num);
-//	using c_entry = typename customer_map::E;
-//	using o_entry = typename order_map::E;
-//	o_entry oe = make_pair(no.o.orderkey, make_pair(no.o, lm));
-//	o_order_map oom = m.oom;
-//	part_to_supp_map psm = m.psm2;
-//	order_map om = m.om;
-//	supp_to_part_map spm = m.spm2;
-//
-//
-//	{
-//		//update cm
-//		auto f = [&] (c_entry& e) {
-//			order_map o = e.second.second;
-//			o.insert(oe);
-//			return make_pair(e.second.first, o);
-//		};
-//		cm.update(no.o.custkey, f);
-//
-//		//update om
-//		om.insert(oe);
-//	}
-//
-//
-//
-//	{
-//		//update supp->part->lineitem
-//		for (int i = 0; i < num; i++) {
-//			dkey_t suppk = no.items[i].suppkey;
-//			dkey_t partk = no.items[i].partkey;
-//			int q = no.items[i].quantity();
-//			auto f = [&] (supp_to_part_map::E& e) {
-//				auto g = [&] (part_supp_and_item_map::E& e2) {
-//					Part_supp x = e2.second.first;
-//					x.availqty -= q;
-//					li_map lm = li_map::insert(e2.second.second, no.items[i]);
-//					return make_pair(x, lm);
-//				};
-//				part_supp_and_item_map t1 = part_supp_and_item_map::update(e.second.second, make_pair(partk,suppk), g);
-//				return make_pair(e.second.first, t1);
-//			};
-//			spm.update(suppk, f);
-//		}
-//	}
-//
-//
-//	{
-//		//update part->supp->lineitem
-//		for (int i = 0; i < num; i++) {
-//			dkey_t suppk = no.items[i].suppkey;
-//			dkey_t partk = no.items[i].partkey;
-//			auto f = [&] (part_to_supp_map::E& e) {
-//				auto g = [&] (part_supp_and_item_map::E& e2) {
-//					li_map lm = li_map::insert(e2.second.second, no.items[i]);
-//					return make_pair(e2.second.first, lm);
-//				};
-//				part_supp_and_item_map t1 = part_supp_and_item_map::update(e.second.second, make_pair(partk, suppk), g);
-//				return make_pair(e.second.first, t1);
-//			};
-//			psm.update(partk, f);
-//		}
-//	}
-//
-//	//add to new_order queue
-//	ti.new_order_q.push_back(make_pair(no.o.custkey,no.o.orderkey));
-//
-//	maps nm = m;
-//	nm.cm = cm;
-//	nm.spm2 = spm;
-//	nm.oom = oom;
-//	nm.om = om;
-//	nm.psm2 = psm;
-//	nm.version = history.size();
-//
-//	history.push_back(nm);
-//	double ret_tm = t.stop();
-//	return ret_tm;
-//}
-//
-//double payment(payment_entry& pay, txn_info& ti) {
-//	maps m = history[history.size()-1];
-//	timer t; t.start();
-//	customer_map cm = m.cm;
-//	auto f = [&] (customer_map::E e) {
-//		e.second.first.acctbal -= pay.amount;
-//		return e.second;
-//	};
-//	cm.update(pay.custkey, f);
-//	maps nm = m;
-//	nm.cm = cm;
-//	nm.version = history.size();
-//
-//	history.push_back(nm);
-//	return t.stop();
-//}
-//
-//double shipment(shipment_entry& ship, txn_info& ti) {
-//	maps m = history[history.size()-1];
-//	timer t; t.start();
-//	customer_map cm = m.cm;
-//	ship_map sm = m.sm;
-//	Date now = ship.date;
-//	li_map* li_list = new li_map[ship.num];
-//	Date* odate_key = new Date[ship.num];
-//	order_map om = m.om;
-//	part_to_supp_map psm = m.psm2;
-//	supp_to_part_map spm = m.spm2;
-//	o_order_map oom = m.oom;
-//
-//	//update customers
-//	for (size_t i = ti.start; i<ti.start+ship.num; i++) {
-//		if (i>=ti.new_order_q.size()) break;
-//		pair<dkey_t, dkey_t> cokey = ti.new_order_q[i];
-//		dkey_t custkey = cokey.first, orderkey = cokey.second;
-//		float money = 0.0;
-//		auto f = [&] (customer_map::E e) {
-//			order_map omf = e.second.second;
-//			auto f2 = [&] (order_map::E e) {
-//				li_map lm = e.second.second;
-//				li_list[i-ti.start] = lm;
-//				money = e.second.first.totalprice;
-//				odate_key[i-ti.start] = e.second.first.orderdate;
-//				auto f3 = [&] (li_map::E e) {
-//					//update lineitem's shipdate
-//					e.s_date = now;
-//					e.set_linestatus();
-//					//insert into ship_map
-//					sm = ship_map::insert(sm, make_pair(now, e));
-//					return e;
-//				};
-//				e.second.second = li_map::map_set(lm, f3);
-//				return e.second;
-//			};
-//			//increase customer's balance
-//			e.second.first.acctbal += money;
-//			omf.update(orderkey, f2);
-//			e.second.second = omf;
-//			return e.second;
-//		};
-//		cm.update(custkey, f);
-//	}
-//
-//	//update parts and supps
-//	for (size_t i = ti.start; i<ti.start+ship.num; i++) {
-//		if (i>=ti.new_order_q.size()) break;
-//		li_map lm = li_list[i-ti.start];
-//		shipped_lineitem += lm.size();
-//		auto ff = [&] (li_map::E e, size_t i) {
-//			e.s_date = now;
-//			e.set_linestatus();
-//			dkey_t suppk = e.suppkey;
-//			dkey_t partk = e.partkey;
-//			//update supp->part->lineitem
-//			{
-//				auto f = [&] (supp_to_part_map::E& ee) {
-//					auto g = [&] (part_supp_and_item_map::E& e2) {
-//						li_map lm = li_map::insert(e2.second.second, e);
-//						return make_pair(e2.second.first, lm);
-//					};
-//					part_supp_and_item_map t1 = part_supp_and_item_map::update(ee.second.second, make_pair(partk,suppk), g);
-//					return make_pair(ee.second.first, t1);
-//				};
-//				spm.update(suppk, f);
-//			}
-//
-//
-//			//update part->supp->lineitem
-//			{
-//				auto f = [&] (part_to_supp_map::E& ee) {
-//					auto g = [&] (part_supp_and_item_map::E& e2) {
-//						li_map lm = li_map::insert(e2.second.second, e);
-//						return make_pair(e2.second.first, lm);
-//					};
-//					part_supp_and_item_map t1 = part_supp_and_item_map::update(ee.second.second, make_pair(partk, suppk), g);
-//					return make_pair(ee.second.first, t1);
-//				};
-//				psm.update(partk, f);
-//			}
-//
-//		};
-//		li_map::map_index(lm, ff);
-//	}
-//
-//	//update odate
-//	for (size_t i = ti.start; i<ti.start+ship.num; i++) {
-//		if (i>=ti.new_order_q.size()) break;
-//		pair<dkey_t, dkey_t> cokey = ti.new_order_q[i];
-//		dkey_t orderkey = cokey.second;
-//		Date dt = odate_key[i-ti.start];
-//		auto f = [&] (o_order_map::E e) {
-//			order_map om = e.second;
-//			auto f2 = [&] (order_map::E e) {
-//				li_map lm = e.second.second;
-//				li_list[i-ti.start] = lm;
-//				auto f3 = [&] (li_map::E e) {
-//					//update lineitem's shipdate
-//					e.s_date = now;
-//					return e;
-//				};
-//				e.second.second = li_map::map_set(lm, f3);
-//				return e.second;
-//			};
-//			om.update(orderkey, f2);
-//			return om;
-//		};
-//		oom.update(dt, f);
-//	}
-//
-//	ti.start += ship.num;
-//	maps nm = m;
-//	nm.cm = cm;
-//	nm.sm = sm;
-//	nm.oom = oom;
-//	nm.spm2 = spm;
-//	nm.psm2 = psm;
-//	nm.version = history.size();
-//
-//	history.push_back(nm);
-//	delete[] li_list;
-//	delete[] odate_key;
-//	return t.stop();
-//}
-//
-pair<double, double> geo_mean(double* x, int round) {
-	double res = 0.0, dev = 0.0;
-	for (int j = 0; j < round; j++) {
-		double tmp = log2(x[j]*1000.0);
-		res += tmp;
-	}
-	res = res/(round+0.0);
-	res = exp2(res);
-	double m = 0.0;
-	for (int j = 0; j < round; j++) {
-		double tmp = log2(x[j]*1000.0/res);
-		m += tmp*tmp;
+struct insert_form {
+    string col_name;
+    string value;
+};
 
-	}
-	dev = exp2(sqrt(m/(round+0.0)));
-	return make_pair(res, dev);
+maps m;
+std::map <int64_t, vector<insert_form>> ready_insert;
+std::map<int64_t, OrderLine*> orderline_object;
+std::map<int64_t, pair<int, int>> orderline_cnt;
+
+void Vec2Map(vector <insert_form> v, std::map<string, string> &row_map) {
+    for (int i = 0; i < v.size(); i++) {
+        row_map[v[i].col_name] = v[i].value;
+    }
 }
 
-pair<double, double> arith_mean(double* x, int round) {
+double insertOrder(int64_t txn_id, vector <insert_form> v) {
+    timer t; t.start();
+    std::map <string, string> row_map;
+    Vec2Map(v, row_map);
+    uint o_id = stoi(row_map["o_id"]);
+    uint o_d_id = stoi(row_map["o_d_id"]);
+    uint o_w_id = stoi(row_map["o_w_id"]);
+    uint o_c_id = stoi(row_map["o_c_id"]);
+    Date o_entry_d = Date(row_map["o_entry_d"]);
+    uint o_carrier_id = stoi(row_map["o_carrier_id"]);
+    uint o_ol_cnt = stoi(row_map["o_ol_cnt"]);
+    // TRICKS: o_c_pkey = 100000*o_w_id + 10000* o_d_id + o_c_id;
+    // TRICKS: o_pkey = 100000*o_w_id + 10000* o_d_id + o_id;
+    uint o_pkey = 100000*o_w_id + 10000* o_d_id + o_id;
+    uint o_c_pkey = 100000*o_w_id + 10000* o_d_id + o_c_id;
+    Order order = Order{o_id, o_d_id, o_w_id, o_c_id, o_entry_d, o_carrier_id, o_ol_cnt, o_c_pkey, o_pkey};
+    using c_entry = typename customer_map::E;
+	using o_entry = typename order_map::E;
+	customer_map cm = m.cm;
+	o_order_map oom = m.oom;
+	order_map om = m.om;
+    OrderLine* orderline;
+
+    // insert order first, orderline is NULL
+    if (orderline_object.find(txn_id) == orderline_object.end()) {
+        orderline = new OrderLine[o_ol_cnt];
+        orderline_object.insert(make_pair(txn_id, orderline));
+        orderline_cnt.insert(make_pair(txn_id,make_pair(0, o_ol_cnt)));
+    }
+    // insert orderline first, orderline exists
+    else {
+        orderline = orderline_object.find(txn_id)->second;
+        orderline_cnt.find(txn_id)->second.second = o_ol_cnt;
+    }
+
+    ol_map ol_m = ol_map(orderline, orderline+o_ol_cnt);
+    o_entry oe = make_pair(o_pkey, make_pair(order, ol_m));
+
+    // update cm
+    auto f = [&] (c_entry& e) {
+        order_map o = e.second.second;
+        o.insert(oe);
+        return make_pair(e.second.first, o);
+    };
+    cm.update(o_c_pkey, f);
+
+    // update om
+    om.insert(oe);
+
+    m.cm = cm;
+    m.om = om;
+    m.oom = oom;
+
+    return t.stop();
+}
+
+double insertOrderline(int64_t txn_id, vector<insert_form> v) {
+    timer t; t.start();
+    std::map <string, string> row_map;
+    Vec2Map(v, row_map);
+    uint ol_o_id = stoi(row_map["ol_o_id"]);
+    uint ol_d_id = stoi(row_map["ol_d_id"]);
+    uint ol_w_id = stoi(row_map["ol_w_id"]);
+    uint ol_number = stoi(row_map["ol_number"]);
+    uint ol_i_id = stoi(row_map["ol_i_id"]);
+    uint ol_supply_w_id = stoi(row_map["ol_supply_w_id"]);
+    Date ol_delivery_d = Date(row_map["ol_delivery_d"]);
+    uint ol_quantity = stoi(row_map["ol_quantity"]);
+    double ol_amount = stof(row_map["ol_amount"]);
+    // TRICKS: ol_suppkey = (ol_i_id*ol_w_id)%10000;
+    // TRICKS: ol_pkey = 100000*ol_w_id + 10000* ol_d_id + ol_o_id;
+    uint ol_suppkey = (ol_i_id*ol_w_id)%10000;
+    uint ol_pkey = 100000*ol_w_id + 10000* ol_d_id + ol_o_id;
+    OrderLine ol = OrderLine{ol_o_id, ol_d_id, ol_w_id, ol_number, ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity, ol_amount, ol_suppkey, ol_pkey};
+    delivery_map dm = m.dm;
+    item_to_supp_map ism = m.ism2;
+    supp_to_item_map sim = m.sim2;
+    supp_to_item_map_tmp sim_tmp = m.sim2_2;
+    OrderLine *orderline;
+
+    // insert order first, orderline is NULL
+    if (orderline_object.find(txn_id) == orderline_object.end()) {
+        // 15 is the max orderline number (decided by data generator)
+        orderline = new OrderLine[15];
+        orderline_object.insert(make_pair(txn_id, orderline));
+        orderline_cnt.insert(make_pair(txn_id,make_pair(1, 0)));
+    }
+    // insert orderline first, orderline exists
+    else {
+        orderline = orderline_object.find(txn_id)->second;
+        orderline_cnt.find(txn_id)->second.first ++;
+        if (orderline_cnt.find(txn_id)->second.first == orderline_cnt.find(txn_id)->second.second) {
+            orderline_cnt.erase(txn_id);
+            orderline_object.erase(txn_id);
+        }
+    }
+
+    orderline[ol_number-1] = ol;
+
+    {
+        //update supp->part->lineitem
+        auto f = [&] (supp_to_item_map::E& e) {
+            auto g = [&] (item_supp_and_orderline_map::E& e2) {
+                Stock x = e2.second.first;
+                ol_map ol_m = ol_map::insert(e2.second.second, orderline[ol_number-1]);
+                return make_pair(x, ol_m);
+            };
+            item_supp_and_orderline_map t1 = item_supp_and_orderline_map::update(e.second.second, make_pair(ol_i_id, ol_supply_w_id), g);
+            return make_pair(e.second.first, t1);
+        };
+        sim.update(ol_suppkey, f);
+    }
+
+    {
+        //update supp->part->lineitem
+        auto f = [&] (supp_to_item_map_tmp::E& e) {
+            auto g = [&] (item_supp_and_orderline_map_tmp::E& e2) {
+                Stock x = e2.second.first;
+                ol_map ol_m = ol_map::insert(e2.second.second, orderline[ol_number-1]);
+                return make_pair(x, ol_m);
+            };
+            item_supp_and_orderline_map_tmp t1 = item_supp_and_orderline_map_tmp::update(e.second.second, ol_i_id, g);
+            return make_pair(e.second.first, t1);
+        };
+        sim_tmp.update(ol_suppkey, f);
+    }
+
+    {
+        //update part->supp->lineitem
+        auto f = [&] (item_to_supp_map::E& e) {
+            auto g = [&] (item_supp_and_orderline_map::E& e2) {
+                ol_map ol_m = ol_map::insert(e2.second.second, orderline[ol_number-1]);
+                return make_pair(e2.second.first, ol_m);
+            };
+            item_supp_and_orderline_map t1 = item_supp_and_orderline_map::update(e.second.second, make_pair(ol_i_id, ol_suppkey), g);
+            return make_pair(e.second.first, t1);
+        };
+        ism.update(ol_i_id, f);
+    }
+
+    m.dm = dm;
+    m.ism2 = ism;
+    m.sim2 = sim;
+    m.sim2_2 = sim_tmp;
+
+    return t.stop();
+}
+
+double updateMap(string table_name, string pkeyColName, string pkeyVal, string colId, string value) {
+    timer t; t.start();
+    std::vector <std::string> pkeyColvec;
+    std::vector <std::string> pkeyValvec;
+    split(pkeyColName, std::string(";"), &pkeyColvec);
+    split(pkeyVal, std::string(";"), &pkeyValvec);
+    std::map <string, string> col_map;
+    for (int i = 0; i < pkeyColvec.size() - 1; i++) {
+        col_map[pkeyColvec[i]] = pkeyValvec[i];
+    }
+
+    if (table_name == "order") {
+        // TRICKS: o_pkey = 100000*o_w_id + 10000* o_d_id + o_id
+        // TRICKS: o_c_pkey = 100000*o_w_id + 10000* o_d_id + o_c_id;
+        uint o_id = stoi(col_map["o_id"]);
+        uint o_d_id = stoi(col_map["o_d_id"]);
+        uint o_w_id = stoi(col_map["o_w_id"]);
+        uint o_pkey = 100000 * o_w_id + 10000 * o_d_id + o_id;
+
+        if (colId == "o_carrier_id") {
+            // update om
+            order_map om = m.om;
+            cout << "Original: " << (*(m.om.find(o_pkey))).first.o_carrier_id;
+            auto f = [&](order_map::E oe) {
+                oe.second.first.o_carrier_id = stoi(value);
+                return oe.second;
+            };
+            om.update(o_pkey, f);
+            m.om = om;
+            cout << ", Current: " << (*(m.om.find(o_pkey))).first.o_carrier_id << endl;
+        } else {
+            cout << colId << ": UNIMPLEMENTED" << endl;
+        }
+    } else if (table_name == "orderline") {
+        // TRICKS: ol_pkey = 100000*ol_w_id + 10000* ol_d_id + ol_o_id
+        uint ol_o_id = stoi(col_map["ol_o_id"]);
+        uint ol_d_id = stoi(col_map["ol_d_id"]);
+        uint ol_w_id = stoi(col_map["ol_w_id"]);
+
+        if (colId == "ol_delivery_d") {
+
+        } else {
+            cout << colId << ": UNIMPLEMENTED" << endl;
+        }
+    } else if (table_name == "customer") {
+        // TRICKS: c_pkey = 100000*c_w_id + 10000* c_d_id + c_id;
+        uint c_id = stoi(col_map["c_id"]);
+        uint c_d_id = stoi(col_map["c_d_id"]);
+        uint c_w_id = stoi(col_map["c_w_id"]);
+        uint c_pkey = 100000 * c_w_id + 10000 * c_d_id + c_id;
+
+        if (colId == "c_balance") {
+            // update cm
+            customer_map cm = m.cm;
+//            cout << "Original: " << (*(m.cm.find(c_pkey))).first.c_balance;
+            auto f = [&](customer_map::E ce) {
+                ce.second.first.c_balance = stoi(value);
+                return ce.second;
+            };
+            cm.update(c_pkey, f);
+            m.cm = cm;
+//            cout << ", Current: " << (*(m.cm.find(c_pkey))).first.c_balance << endl;
+        } else if (colId == "c_delivery_cnt") {
+            // No need to update map
+        } else {
+            cout << colId << ": UNIMPLEMENTED" << endl;
+        }
+    } else if (table_name == "stock") {
+        uint s_i_id = stoi(col_map["s_i_id"]);
+        uint s_w_id = stoi(col_map["s_w_id"]);
+
+        if (colId == "s_quantity") {
+            // update ism
+            item_supp_map ism = static_data.ism;
+//            cout << "Original: " << (*(static_data.ism.find(make_pair(s_i_id, s_w_id)))).s_quantity;
+            auto f = [&](item_supp_map::E se) {
+                se.second.s_quantity = stoi(value);
+                return se.second;
+            };
+            ism.update(make_pair(s_i_id, s_w_id), f);
+            static_data.ism = ism;
+//            cout << ", Current: " << (*(static_data.ism.find(make_pair(s_i_id, s_w_id)))).s_quantity << endl;
+        } else if (colId == "s_order_cnt") {
+            item_supp_map ism = static_data.ism;
+//            cout << "Original: " << (*(static_data.ism.find(make_pair(s_i_id, s_w_id)))).s_order_cnt;
+            auto f = [&](item_supp_map::E se) {
+                se.second.s_order_cnt = stoi(value);
+                return se.second;
+            };
+            ism.update(make_pair(s_i_id, s_w_id), f);
+            static_data.ism = ism;
+//            cout << ", Current: " << (*(static_data.ism.find(make_pair(s_i_id, s_w_id)))).s_order_cnt << endl;
+        } else if (colId == "s_ytd" || colId == "s_remote_cnt") {
+            // No need to update map
+        } else {
+            cout << colId << ": UNIMPLEMENTED" << endl;
+        }
+    }
+
+    return t.stop();
+}
+
+double op(int op_type, int64_t txnid, string table_name, string pkey_col_name, string pkey_val, string col_name,
+          string value) {
+    double ret = 0;
+
+    // update
+    if (op_type == 0) {
+        ret = updateMap(table_name, pkey_col_name, pkey_val, col_name, value);
+        return ret;
+    }
+
+    // insert
+    if (op_type == 1) {
+
+        // useless cols, skip directly
+        if ((col_name == "o_all_local") or (col_name == "ol_dist_info")) {
+            return 0.0;
+        }
+
+        if (ready_insert.find(txnid) == ready_insert.end()) {
+            vector <insert_form> v{insert_form{col_name, value}};
+            ready_insert.insert(make_pair(txnid, v));
+        } else {
+            ready_insert[txnid].push_back(insert_form{col_name, value});
+        }
+
+        // Order has 8 cols
+        if (table_name == "order" && ready_insert[txnid].size() == 7) {
+            ret = insertOrder(txnid, ready_insert[txnid]);
+            ready_insert.erase(txnid);
+            return ret;
+        }
+        // Orderline has 10 cols
+        if (table_name == "orderline" && ready_insert[txnid].size() == 9) {
+            ret = insertOrderline(txnid, ready_insert[txnid]);
+            ready_insert.erase(txnid);
+            return ret;
+        }
+
+        return 0.0;
+    }
+}
+
+pair<double, double> geo_mean(double *x, int round) {
     double res = 0.0, dev = 0.0;
     for (int j = 0; j < round; j++) {
-        double tmp = x[j]*1000;
+        double tmp = log2(x[j] * 1000.0);
         res += tmp;
     }
-    res = res/(round+0.0);
+    res = res / (round + 0.0);
+    res = exp2(res);
     double m = 0.0;
     for (int j = 0; j < round; j++) {
-        double tmp = (x[j]*1000)/res;
-        m += tmp*tmp;
+        double tmp = log2(x[j] * 1000.0 / res);
+        m += tmp * tmp;
 
     }
-    dev = sqrt(m/(round+0.0));
+    dev = exp2(sqrt(m / (round + 0.0)));
+    return make_pair(res, dev);
+}
+
+pair<double, double> arith_mean(double *x, int round) {
+    double res = 0.0, dev = 0.0;
+    for (int j = 0; j < round; j++) {
+        double tmp = x[j] * 1000;
+        res += tmp;
+    }
+    res = res / (round + 0.0);
+    double m = 0.0;
+    for (int j = 0; j < round; j++) {
+        double tmp = (x[j] * 1000) / res;
+        m += tmp * tmp;
+
+    }
+    dev = sqrt(m / (round + 0.0));
     return make_pair(res, dev);
 }
 
@@ -480,28 +554,28 @@ pair<double, double> arith_mean(double* x, int round) {
 //    nextTime("query or update");
 //  }
 //}
-void output_res(double** tm, int round, int queries) {
+void output_res(double **tm, int round, int queries) {
     double tot = 0;
     double res[queries];
     for (int i = 0; i < queries; i++) {
         res[i] = 0;
-        cout << "processing query " << i+1 << endl;
+        cout << "processing query " << i + 1 << endl;
         for (int j = 0; j < round; j++) {
-            double tmp = log2(tm[i][j]*1000.0);
+            double tmp = log2(tm[i][j] * 1000.0);
             res[i] += tmp;
             cout << tm[i][j] << " ";
         }
         cout << endl;
-        res[i] = res[i]/(round+0.0);
+        res[i] = res[i] / (round + 0.0);
         tot += res[i];
         res[i] = exp2(res[i]);
         double m = 0.0, dev = 0.0;
         for (int j = 0; j < round; j++) {
-            double tmp = log2(tm[i][j]*1000.0/res[i]);
-            m += tmp*tmp;
+            double tmp = log2(tm[i][j] * 1000.0 / res[i]);
+            m += tmp * tmp;
         }
-        dev = exp2(sqrt(m/(round+0.0)));
-        cout << "geo mean of query " << i+1 << " : " << res[i] << ", sdev: " << dev << endl << endl;
+        dev = exp2(sqrt(m / (round + 0.0)));
+        cout << "geo mean of query " << i + 1 << " : " << res[i] << ", sdev: " << dev << endl << endl;
     }
 }
 
@@ -529,39 +603,42 @@ void output_res(double** tm, int round, int queries) {
 # include "Q22.h"
 
 void test(string data_directory, bool verbose) {
-    maps m = make_maps_test(data_directory, verbose);
-    int queries = 22, round = 6;
-    double** tm;
-    tm = new double*[queries];
-    for (int i = 0; i < queries; i++) {
-      tm[i] = new double[100];
-    }
-    for (int i = 0; i < round; i++) {
-        tm[0][i] = Q1time(m, verbose);
-        tm[1][i] = Q2time(m, verbose);
-        tm[2][i] = Q3time(m, verbose);
-        tm[3][i] = Q4time(m, verbose);
-        tm[4][i] = Q5time(m, verbose);
-        tm[5][i] = Q6time(m, verbose);
-        tm[6][i] = Q7time(m, verbose);
-        tm[7][i] = Q8time(m, verbose);
-        tm[8][i] = Q9time(m, verbose);
-        tm[9][i] = Q10time(m, verbose);
-        tm[10][i] = Q11time(m, verbose);
-        tm[11][i] = Q12time(m, verbose);
-        tm[12][i] = Q13time(m, verbose);
-        tm[13][i] = Q14time(m, verbose);
-        tm[14][i] = Q15time(m, verbose);
-        tm[15][i] = Q16time(m, verbose);
-        tm[16][i] = Q17time(m, verbose);
-        tm[17][i] = Q18time(m, verbose);
-        tm[18][i] = Q19time(m, verbose);
-        tm[19][i] = Q20time(m, verbose);
-        tm[20][i] = Q21time(m, verbose);
-        tm[21][i] = Q22time(m, verbose);
-    }
-
-    output_res(tm, round, queries);
+    m = make_maps_test(data_directory, verbose);
+//    int queries = 22, round = 6;
+//    double** tm;
+//    tm = new double*[queries];
+//    for (int i = 0; i < queries; i++) {
+//      tm[i] = new double[100];
+//    }
+//    for (int i = 0; i < round; i++) {
+//        tm[0][i] = Q1time(m, verbose);
+//        tm[1][i] = Q2time(m, verbose);
+//        tm[2][i] = Q3time(m, verbose);
+//        tm[3][i] = Q4time(m, verbose);
+//        tm[4][i] = Q5time(m, verbose);
+//        tm[5][i] = Q6time(m, verbose);
+//        tm[6][i] = Q7time(m, verbose);
+//        tm[7][i] = Q8time(m, verbose);
+//        tm[8][i] = Q9time(m, verbose);
+//        tm[9][i] = Q10time(m, verbose);
+//        tm[10][i] = Q11time(m, verbose);
+//        tm[11][i] = Q12time(m, verbose);
+//        tm[12][i] = Q13time(m, verbose);
+//        tm[13][i] = Q14time(m, verbose);
+//        tm[14][i] = Q15time(m, verbose);
+//        tm[15][i] = Q16time(m, verbose);
+//        tm[16][i] = Q17time(m, verbose);
+//        tm[17][i] = Q18time(m, verbose);
+//        tm[18][i] = Q19time(m, verbose);
+//        tm[19][i] = Q20time(m, verbose);
+//        tm[20][i] = Q21time(m, verbose);
+//        tm[21][i] = Q22time(m, verbose);
+//    }
+//
+//    output_res(tm, round, queries);
+//    updateMap("customer", "c_id;c_d_id;c_w_id;", "92;0;0;", "c_balance", "9999");
+//    updateMap("stock", "s_i_id;s_w_id;", "9999999;0;", "s_order_cnt", "9999");
+    updateMap("order", "o_id;o_d_id;o_w_id;", "1623;0;0;", "o_carrier_id", "9999");
 }
 
 int main(int argc, char **argv) {

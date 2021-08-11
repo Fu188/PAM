@@ -125,6 +125,7 @@ block_allocator customer_str_pool(58);
 
 // size 32
 struct Customer {
+    // TRICKS: c_pkey = 100000*c_w_id + 10000* c_d_id + c_id;
     uint c_pkey;
     uint c_id;
     uint c_d_id;
@@ -136,12 +137,12 @@ struct Customer {
     Customer() {}
 
     Customer(sequence<char *> const &S) {
-        c_pkey = str_to_int(S[22]);
         c_id = str_to_int(S[0]);
         c_d_id = str_to_int(S[1]);
         c_w_id = str_to_int(S[2]);
         c_balance = atof(S[16]);
         c_n_nationkey = str_to_int(S[21]);
+        c_pkey = c_w_id * 100000 + c_d_id * 10000 + c_id;
         strings = (char*) customer_str_pool.alloc();
 
         copy_string(strings, S[5], 16);
@@ -158,6 +159,8 @@ struct Customer {
 
 // size 28
 struct Order {
+    // TRICKS: o_c_pkey = 100000*o_w_id + 10000* o_d_id + o_c_id;
+    // TRICKS: o_pkey = 100000*o_w_id + 10000* o_d_id + o_id;
     uint o_id;
     uint o_d_id;
     uint o_w_id;
@@ -165,10 +168,22 @@ struct Order {
     Date o_entry_d;
     uint o_carrier_id;
     uint o_ol_cnt;
-    uint o_pkey;
     uint o_c_pkey;
+    uint o_pkey;
 
     Order() {}
+
+    Order(uint id, uint d_id, uint w_id, uint c_id, Date entry_d, uint carrier_id, uint ol_cnt, uint c_pkey, uint pkey) {
+        o_id = id;
+        o_d_id = d_id;
+        o_w_id = w_id;
+        o_c_id = c_id;
+        o_entry_d = entry_d;
+        o_carrier_id = carrier_id;
+        o_ol_cnt = ol_cnt;
+        o_c_pkey = c_pkey;
+        o_pkey = pkey;
+    }
 
     Order(sequence<char *> const &S) {
         o_id = str_to_int(S[0]);
@@ -178,8 +193,8 @@ struct Order {
         o_entry_d = Date(S[4]);
         o_carrier_id = str_to_int(S[5]);
         o_ol_cnt = str_to_int(S[6]);
-        o_pkey = str_to_int(S[8]);
-        o_c_pkey = str_to_int(S[9]);
+        o_c_pkey = o_w_id * 100000 + o_d_id * 10000 + o_c_id;
+        o_pkey = o_w_id * 100000 + o_d_id * 10000 + o_id;
     }
 };
 
@@ -227,7 +242,8 @@ struct Stock{
 
 // size 36
 struct OrderLine {
-    uint ol_pkey;
+    // TRICKS: ol_suppkey = (ol_i_id*ol_w_id)%10000;
+    // TRICKS: ol_pkey = 100000*ol_w_id + 10000* ol_d_id + ol_o_id;
     uint ol_o_id;
     uint ol_d_id;
     uint ol_w_id;
@@ -236,10 +252,25 @@ struct OrderLine {
     uint ol_supply_w_id;
     Date ol_delivery_d;
     uint ol_quantity;
-    uint ol_suppkey;
     float ol_amount;
+    uint ol_suppkey;
+    uint ol_pkey;
 
     OrderLine() = default;
+
+    OrderLine(uint o_id, uint d_id, uint w_id, uint number, uint i_id, uint supply_w_id, Date delivery_d, uint quantity, float amount, uint suppkey, uint pkey) {
+        ol_o_id = o_id;
+        ol_d_id = d_id;
+        ol_w_id = w_id;
+        ol_number = number;
+        ol_i_id = i_id;
+        ol_supply_w_id = supply_w_id;
+        ol_delivery_d = delivery_d;
+        ol_quantity = quantity;
+        ol_amount = amount;
+        ol_suppkey = suppkey;
+        ol_pkey = pkey;
+    }
 
     OrderLine(sequence<char *> const &S) {
         ol_o_id = str_to_int(S[0]);
@@ -251,7 +282,7 @@ struct OrderLine {
         ol_delivery_d = Date(S[6]);
         ol_quantity = str_to_int(S[7]);
         ol_amount = atof(S[8]);
-        ol_pkey = str_to_int(S[10]);
+        ol_pkey = ol_w_id * 100000 + ol_d_id * 10000 + ol_o_id;
         ol_suppkey = (ol_i_id*ol_w_id)%10000;
     }
 };

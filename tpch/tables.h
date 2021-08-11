@@ -104,6 +104,7 @@ struct arrays_and_temps {
   Item* all_item;
   Nation* all_nation;
   item_supp_map ism;
+  item_supp_map_tmp ism_tmp;
 } static_data;
 
 maps make_maps_test(string dirname, bool verbose) {
@@ -229,13 +230,13 @@ maps make_maps_test(string dirname, bool verbose) {
         item_supp_and_orderline_map isom = paired_index<item_supp_and_orderline_map>(static_data.ism, amap);
         if (verbose) {nextTime("<itemkey,supp_w_key> -> (stock,orderline index)");}
 
-        item_supp_map_tmp ism_temp = primary_index<item_supp_map_tmp>(stocks, [&] (Stock s) {
+        static_data.ism_tmp = primary_index<item_supp_map_tmp>(stocks, [&] (Stock s) {
             return s.s_i_id;
         });
         st_ol_map_tmp amap2_temp = secondary_index<st_ol_map_tmp>(orderlines, [] (OrderLine ol) {
             return ol.ol_i_id;
         });
-        item_supp_and_orderline_map_tmp isom_temp = paired_index<item_supp_and_orderline_map_tmp>(ism_temp, amap2_temp);
+        item_supp_and_orderline_map_tmp isom_temp = paired_index<item_supp_and_orderline_map_tmp>(static_data.ism_tmp, amap2_temp);
 
         using tmp_map = keyed_map<item_supp_and_orderline_map>;
         using tmp_map_tmp = keyed_map<item_supp_and_orderline_map_tmp>;
